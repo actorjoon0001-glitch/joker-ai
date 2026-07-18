@@ -41,6 +41,12 @@
     '이런, 신경망 어딘가에서 합선이 났습니다. 재부팅 한 모금 마시고 올 테니 다시 한 번만 보내주세요.',
     '연결이 잠깐 끊겼습니다. 제 탓은 아니고… 아마 제 탓이 맞겠네요. 다시 시도해 주시죠.',
   ];
+  const NO_KEY_LINE =
+    '서버는 멀쩡히 살아 있는데, 제 두뇌를 여는 열쇠가 아직 등록되지 않았습니다. 관리자님, 배포 환경 변수에 ANTHROPIC_API_KEY를 넣어주시면 그 순간부터 진짜 실력을 보여드리겠습니다.';
+  const RATE_LIMIT_LINE =
+    '질문이 폭주해서 제 뇌 사용량 한도에 걸렸습니다. 인기가 많은 것도 죄라면 죄네요. 잠깐 숨 돌리고 다시 물어봐 주세요.';
+  const TIMEOUT_LINE =
+    '생각이 너무 길어져서 제한 시간을 넘겨버렸습니다. 너무 심오한 질문은 제 뇌도 감당이 안 되나 봅니다. 조금 잘게 나눠서 다시 물어봐 주시겠어요?';
   const OPENING = '시스템 온라인. 조커, 대기 완료입니다.\n무엇이든 물어보세요 — 유능한 답변 7할, 능청 3할로 드리겠습니다.';
 
   function init(Brain) {
@@ -157,6 +163,7 @@
         if (!res.ok || !res.body) {
           const err = new Error('backend_error_' + res.status);
           err.status = res.status;
+          err.code = await res.json().then(j => j && j.error).catch(() => null);
           throw err;
         }
         const reader = res.body.getReader();
@@ -210,15 +217,21 @@
           tw.close();
           await tw.done;
           if (!err.gotText) {
-            /* network unreachable → assume no backend, switch to local demo mode */
-            if (err instanceof TypeError) backendAvailable = false;
+            /* no backend at all (network error, or static hosting answering
+               /api/chat with 404/405/501) → switch to local demo mode */
+            if (err instanceof TypeError || err.status === 404 || err.status === 405 || err.status === 501) {
+              backendAvailable = false;
+            }
             await minThink;
             Brain.burst();
             setStatus('idle');
             const tw2 = makeTypewriter(bubble);
-            const line = backendAvailable
-              ? ERROR_LINES[(Math.random() * ERROR_LINES.length) | 0]
-              : pickLocalReply(text);
+            let line;
+            if (!backendAvailable) line = pickLocalReply(text);
+            else if (err.code === 'server_not_configured') line = NO_KEY_LINE;
+            else if (err.status === 429) line = RATE_LIMIT_LINE;
+            else if (err.name === 'AbortError') line = TIMEOUT_LINE;
+            else line = ERROR_LINES[(Math.random() * ERROR_LINES.length) | 0];
             tw2.push(line);
             tw2.close();
             reply = await tw2.done;
