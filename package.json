@@ -1,0 +1,13 @@
+{
+  "name": "joker-ai",
+  "version": "3.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Joker — 3D neural-brain AI assistant chat (Three.js + GSAP frontend, Claude API streaming backend)",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.112.3"
+  }
+}
