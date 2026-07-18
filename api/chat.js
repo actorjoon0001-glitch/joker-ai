@@ -29,6 +29,30 @@ const DEPT_KEYS = {
 const OVERLOAD_LINE =
   '으음… 그 질문은 제 회로가 정중히 사양하겠답니다. 다른 주제라면 뭐든 환영입니다.';
 
+/* User-registered company memory (from the settings panel) → system prompt block.
+   Everything is length-capped; returns null when nothing is registered. */
+function buildKnowledgeBlock(k) {
+  if (!k || typeof k !== 'object') return null;
+  const clip = (s) => (typeof s === 'string' ? s.trim().slice(0, 2000) : '');
+  const NAMES = {
+    marketing: '마케팅팀', design: '설계팀', construction: '시공팀',
+    finance: '정산팀', legal: '법무팀', sales: '영업팀', strategy: '전략기획팀',
+  };
+  const lines = [];
+  const company = clip(k.company);
+  if (company) lines.push('회사 공통: ' + company);
+  for (const [key, name] of Object.entries(NAMES)) {
+    const v = clip(k.depts && k.depts[key]);
+    if (v) lines.push(name + ': ' + v);
+  }
+  if (!lines.length) return null;
+  return (
+    '\n\n[회사 메모리 — 상준님이 직접 등록해 둔 정보]\n' +
+    lines.join('\n').slice(0, 12000) +
+    '\n이 정보를 이미 알고 있는 비서처럼 답변에 자연스럽게 활용해.'
+  );
+}
+
 /* Keep only well-formed {role, content} string turns, ensure the sequence starts
    with a user turn, and cap the length. */
 function sanitizeHistory(messages) {
@@ -57,6 +81,7 @@ export default async function handler(req, res) {
     res.status(400).json({ error: 'invalid_messages' });
     return;
   }
+  const knowledgeBlock = buildKnowledgeBlock(req.body && req.body.knowledge);
 
   const client = new Anthropic();
   let wrote = false;
@@ -75,7 +100,7 @@ export default async function handler(req, res) {
       max_tokens: 2048,
       thinking: { type: 'adaptive' },
       output_config: { effort: 'medium' },
-      system: SYSTEM_PROMPT,
+      system: knowledgeBlock ? SYSTEM_PROMPT + knowledgeBlock : SYSTEM_PROMPT,
       messages: history,
     });
 
