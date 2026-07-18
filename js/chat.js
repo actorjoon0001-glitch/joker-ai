@@ -147,12 +147,24 @@
       return LOCAL_FALLBACK[(Math.random() * LOCAL_FALLBACK.length) | 0];
     }
 
-    /* Stream the assistant reply from the backend into the typewriter.
-       Returns the full reply text; throws on failure with .gotText flag. */
+    /* Stream the assistant reply from the backend into the typewriter. The server
+       may prefix the stream with a control header "\x00dept:<key>\x00" carrying the
+       department classification. Returns {full, dept}; throws with .gotText flag. */
     async function streamFromBackend(tw) {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
       let gotText = false;
+      let dept = null;
+      let headBuf = '';
+      let headerDone = false;
+
+      const emit = (text) => {
+        if (!text) return '';
+        if (!gotText) { gotText = true; Brain.burst(); setStatus('idle'); }
+        tw.push(text);
+        return text;
+      };
+
       try {
         const res = await fetch(API_URL, {
           method: 'POST',
@@ -172,21 +184,40 @@
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          const text = decoder.decode(value, { stream: true });
-          if (text) {
-            if (!gotText) { gotText = true; Brain.burst(); setStatus('idle'); }
-            full += text;
-            tw.push(text);
+          let text = decoder.decode(value, { stream: true });
+          if (!text) continue;
+          if (!headerDone) {
+            headBuf += text;
+            if (headBuf[0] === '\u0000') {
+              const end = headBuf.indexOf('\u0000', 1);
+              if (end === -1) {
+                if (headBuf.length < 40) continue; /* wait for the rest of the header */
+              } else {
+                const m = headBuf.slice(1, end).match(/^dept:([a-z]+)$/);
+                if (m) dept = m[1];
+                headBuf = headBuf.slice(end + 1);
+              }
+            }
+            headerDone = true;
+            text = headBuf;
+            headBuf = '';
+            if (dept) applyDept(dept);
           }
+          full += emit(text);
         }
+        if (!headerDone && headBuf) full += emit(headBuf);
         if (!full.trim()) throw new Error('empty_response');
-        return full;
+        return { full, dept };
       } catch (err) {
         err.gotText = gotText;
         throw err;
       } finally {
         clearTimeout(timer);
       }
+    }
+
+    function applyDept(deptKey) {
+      Brain.setDept(deptKey && deptKey !== 'general' ? deptKey : null);
     }
 
     async function handleSend() {
@@ -209,7 +240,10 @@
       if (backendAvailable) {
         const tw = makeTypewriter(bubble);
         try {
-          reply = await streamFromBackend(tw);
+          const result = await streamFromBackend(tw);
+          reply = result.full;
+          /* server didn't classify (e.g. model skipped the tag) → keyword fallback */
+          if (!result.dept) applyDept(window.classifyDept(text + ' ' + reply));
           tw.close();
           await tw.done;
         } catch (err) {
@@ -242,10 +276,14 @@
       } else {
         await minThink;
         await new Promise(r => setTimeout(r, 400 + Math.random() * 800));
+        const dept = window.classifyDept(text);
+        applyDept(dept);
         Brain.burst();
         setStatus('idle');
         const tw = makeTypewriter(bubble);
-        tw.push(pickLocalReply(text));
+        tw.push(dept
+          ? `${window.DEPTS[dept].name} 업무로 분류했습니다 — 뇌의 담당 영역이 켜진 게 보이시죠? 지금은 데모 모드라 맛보기지만, 서버가 연결되면 ${window.DEPTS[dept].name} 일은 제대로 도와드리겠습니다.`
+          : pickLocalReply(text));
         tw.close();
         reply = await tw.done;
       }

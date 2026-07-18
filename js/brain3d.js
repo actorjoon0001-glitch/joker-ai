@@ -9,19 +9,24 @@
     attribute float aSpeed;
     attribute float aSize;
     attribute float aSeed;
+    attribute float aRegion;
     uniform float uTime;
     uniform float uActivity;
     uniform float uPixelRatio;
+    uniform float uRegion;
+    uniform float uRegionAmp;
     varying float vPulse;
     varying float vSeed;
     varying float vDist;
+    varying float vInRegion;
     void main() {
       float speed = mix(0.9, 6.0, uActivity);
       vPulse = 0.5 + 0.5 * sin(uTime * speed * aSpeed + aPhase);
       vSeed = aSeed;
       vDist = length(position);
+      vInRegion = (1.0 - step(0.4, abs(aRegion - uRegion))) * uRegionAmp;
       vec4 mv = modelViewMatrix * vec4(position, 1.0);
-      gl_PointSize = aSize * (0.75 + vPulse * 0.7) * uPixelRatio * (7.0 / -mv.z);
+      gl_PointSize = aSize * (0.75 + vPulse * 0.7 + vInRegion * 0.5) * uPixelRatio * (7.0 / -mv.z);
       gl_Position = projectionMatrix * mv;
     }
   `;
@@ -31,12 +36,14 @@
     uniform vec3 uColorA;
     uniform vec3 uColorB;
     uniform vec3 uColorC;
+    uniform vec3 uRegionColor;
     uniform float uMix;
     uniform float uBurstR;
     uniform float uBurstAmp;
     varying float vPulse;
     varying float vSeed;
     varying float vDist;
+    varying float vInRegion;
     void main() {
       vec2 c = gl_PointCoord - 0.5;
       float d = length(c) * 2.0;
@@ -46,9 +53,10 @@
       vec3 col = mix(uColorA, uColorB, uMix);
       col = mix(col, uColorB, step(0.86, vSeed) * 0.7);
       col = mix(col, uColorC, step(0.94, vSeed) * 0.85);
+      col = mix(col, uRegionColor, vInRegion * 0.85);
       float burst = smoothstep(0.35, 0.0, abs(vDist - uBurstR)) * uBurstAmp;
       col += uColorC * burst * 1.6;
-      float alpha = a * (0.22 + 0.55 * vPulse) + burst * a * 0.8;
+      float alpha = a * (0.22 + 0.55 * vPulse) + burst * a * 0.8 + vInRegion * a * 0.5;
       gl_FragColor = vec4(col * alpha, alpha);
     }
   `;
@@ -56,13 +64,18 @@
   const LINE_VERT = `
     attribute float aT;
     attribute float aSeed;
+    attribute float aRegion;
+    uniform float uRegion;
+    uniform float uRegionAmp;
     varying float vT;
     varying float vSeed;
     varying float vDist;
+    varying float vInRegion;
     void main() {
       vT = aT;
       vSeed = aSeed;
       vDist = length(position);
+      vInRegion = (1.0 - step(0.4, abs(aRegion - uRegion))) * uRegionAmp;
       gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     }
   `;
@@ -77,9 +90,11 @@
     uniform vec3 uColorA;
     uniform vec3 uColorB;
     uniform vec3 uColorC;
+    uniform vec3 uRegionColor;
     varying float vT;
     varying float vSeed;
     varying float vDist;
+    varying float vInRegion;
     void main() {
       vec3 base = mix(uColorA, uColorB, uMix);
       /* traveling light pulse along the edge */
@@ -92,6 +107,7 @@
       vec3 sig = mix(uColorC, uColorA, uMix * 0.5);
       float burst = smoothstep(0.3, 0.0, abs(vDist - uBurstR)) * uBurstAmp;
       vec3 col = base * (0.055 + uActivity * 0.10) + sig * pulse * (0.55 + uActivity * 0.6) + uColorC * burst * 0.9;
+      col += uRegionColor * vInRegion * 0.14;
       gl_FragColor = vec4(col, 1.0);
     }
   `;
@@ -103,7 +119,21 @@
     return 'stem';
   }
 
-  /* Sample one point inside a brain-shaped volume. Returns THREE.Vector3-ish array. */
+  /* Anatomical part + position → department region id (see js/depts.js for ids).
+     0 = unassigned/general tissue. +z is the front of the brain. */
+  function regionOf(part, x, y, z) {
+    if (part === 'cerebellum') return 6;                                  /* 정산팀 */
+    if (part === 'stem') return 7;                                        /* 법무팀 */
+    if (z > 0.5) return 1;                                                /* 전략기획팀 — frontal */
+    if (y > 0.32) return 2;                                               /* 마케팅팀 — parietal top */
+    if (y < -0.25 && Math.abs(x) < 0.3 && z > -0.4) return 7;             /* 법무팀 — lower central */
+    if (x > 0.3) return 3;                                                /* 영업팀 — right temporal */
+    if (x < -0.3) return 4;                                               /* 설계팀 — left temporal */
+    if (z < -0.4) return 5;                                               /* 시공팀 — occipital */
+    return 0;
+  }
+
+  /* Sample one point inside a brain-shaped volume → {p: [x,y,z], part}. */
   function samplePoint() {
     const region = inRegion(Math.random);
     if (region === 'cerebrum') {
@@ -125,7 +155,7 @@
       let pz = z * 1.25 * w * shell;
       if (py < -0.48) py = -0.48 - (py + 0.48) * 0.3;           /* flatten base */
       if (Math.abs(px) < 0.045 && py > 0.1) px += px >= 0 ? 0.05 : -0.05; /* midline groove */
-      return [px, py, pz];
+      return { p: [px, py, pz], part: 'cerebrum' };
     }
     if (region === 'cerebellum') {
       let x, y, z, d;
@@ -136,21 +166,27 @@
       d = Math.sqrt(d); x /= d; y /= d; z /= d;
       const w = 1 + 0.07 * Math.sin(22.0 * y) + 0.03 * Math.sin(14.0 * x);
       const shell = 0.5 + 0.5 * Math.pow(Math.random(), 0.5);
-      return [
-        x * 0.52 * w * shell,
-        -0.55 + y * 0.33 * w * shell,
-        -0.95 + z * 0.42 * w * shell,
-      ];
+      return {
+        p: [
+          x * 0.52 * w * shell,
+          -0.55 + y * 0.33 * w * shell,
+          -0.95 + z * 0.42 * w * shell,
+        ],
+        part: 'cerebellum',
+      };
     }
     /* brain stem */
     const t = Math.random();
     const ang = Math.random() * Math.PI * 2;
     const rad = (0.14 - t * 0.05) * Math.sqrt(Math.random());
-    return [
-      Math.cos(ang) * rad,
-      -0.5 - t * 0.5 + Math.sin(ang) * rad * 0.4,
-      -0.55 + t * 0.22 + Math.sin(ang) * rad,
-    ];
+    return {
+      p: [
+        Math.cos(ang) * rad,
+        -0.5 - t * 0.5 + Math.sin(ang) * rad * 0.4,
+        -0.55 + t * 0.22 + Math.sin(ang) * rad,
+      ],
+      part: 'stem',
+    };
   }
 
   function buildEdges(positions, count, maxEdges) {
@@ -221,6 +257,9 @@
       uColorA: { value: new THREE.Color(0x34e0ff) },
       uColorB: { value: new THREE.Color(0xb26bff) },
       uColorC: { value: new THREE.Color(0x58ff9b) },
+      uRegion: { value: -1 },
+      uRegionAmp: { value: 0 },
+      uRegionColor: { value: new THREE.Color(0xffffff) },
     };
 
     /* ── geometry ── */
@@ -229,8 +268,9 @@
     const speeds = new Float32Array(POINTS);
     const sizes = new Float32Array(POINTS);
     const seeds = new Float32Array(POINTS);
+    const regions = new Float32Array(POINTS);
     for (let i = 0; i < POINTS; i++) {
-      const p = samplePoint();
+      const { p, part } = samplePoint();
       positions[i * 3] = p[0];
       positions[i * 3 + 1] = p[1];
       positions[i * 3 + 2] = p[2];
@@ -238,6 +278,7 @@
       speeds[i] = 0.6 + Math.random() * 0.8;
       sizes[i] = 1.2 + Math.random() * 2.2;
       seeds[i] = Math.random();
+      regions[i] = regionOf(part, p[0], p[1], p[2]);
     }
 
     const pGeo = new THREE.BufferGeometry();
@@ -246,6 +287,7 @@
     pGeo.setAttribute('aSpeed', new THREE.BufferAttribute(speeds, 1));
     pGeo.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
     pGeo.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 1));
+    pGeo.setAttribute('aRegion', new THREE.BufferAttribute(regions, 1));
 
     const pMat = new THREE.ShaderMaterial({
       vertexShader: POINT_VERT,
@@ -262,6 +304,7 @@
     const ePos = new Float32Array(edgeIdx.length * 3);
     const eT = new Float32Array(edgeIdx.length);
     const eSeed = new Float32Array(edgeIdx.length);
+    const eRegion = new Float32Array(edgeIdx.length);
     for (let e = 0; e < edgeCount; e++) {
       const a = edgeIdx[e * 2], b = edgeIdx[e * 2 + 1];
       const s = Math.random();
@@ -271,11 +314,13 @@
       }
       eT[e * 2] = 0; eT[e * 2 + 1] = 1;
       eSeed[e * 2] = s; eSeed[e * 2 + 1] = s;
+      eRegion[e * 2] = regions[a]; eRegion[e * 2 + 1] = regions[b];
     }
     const eGeo = new THREE.BufferGeometry();
     eGeo.setAttribute('position', new THREE.BufferAttribute(ePos, 3));
     eGeo.setAttribute('aT', new THREE.BufferAttribute(eT, 1));
     eGeo.setAttribute('aSeed', new THREE.BufferAttribute(eSeed, 1));
+    eGeo.setAttribute('aRegion', new THREE.BufferAttribute(eRegion, 1));
 
     const eMat = new THREE.ShaderMaterial({
       vertexShader: LINE_VERT,
@@ -335,6 +380,26 @@
       if (breathe) { breathe.kill(); breathe = null; }
       gsap.to(group.scale, { x: 1, y: 1, z: 1, duration: 0.5, ease: 'power2.out' });
     }
+    /* highlight a department's brain region (deptKey from js/depts.js; null clears) */
+    function setDept(deptKey) {
+      const d = deptKey && window.DEPTS && window.DEPTS[deptKey];
+      gsap.killTweensOf(uniforms.uRegionAmp);
+      if (!d) {
+        gsap.to(uniforms.uRegionAmp, { value: 0, duration: 0.8, ease: 'power2.out' });
+        return;
+      }
+      const activate = () => {
+        uniforms.uRegion.value = d.id;
+        uniforms.uRegionColor.value.set(d.color);
+        gsap.fromTo(uniforms.uRegionAmp, { value: 0 }, { value: 1, duration: 0.9, ease: 'power2.out' });
+      };
+      if (uniforms.uRegionAmp.value > 0.05 && uniforms.uRegion.value !== d.id) {
+        gsap.to(uniforms.uRegionAmp, { value: 0, duration: 0.35, ease: 'power2.in', onComplete: activate });
+      } else {
+        activate();
+      }
+    }
+
     function burst() {
       gsap.killTweensOf([uniforms.uBurstR, uniforms.uBurstAmp]);
       const tl = gsap.timeline();
@@ -397,13 +462,13 @@
       cancelAnimationFrame(raf);
       removeEventListener('pointermove', onPointer);
       removeEventListener('resize', resize);
-      gsap.killTweensOf([uniforms.uActivity, uniforms.uMix, uniforms.uBurstR, uniforms.uBurstAmp, group.scale]);
+      gsap.killTweensOf([uniforms.uActivity, uniforms.uMix, uniforms.uBurstR, uniforms.uBurstAmp, uniforms.uRegionAmp, group.scale]);
       if (breathe) breathe.kill();
       pGeo.dispose(); eGeo.dispose(); pMat.dispose(); eMat.dispose();
       renderer.dispose();
     }
 
-    return { think, idle, burst, destroy };
+    return { think, idle, burst, setDept, destroy };
   }
 
   window.Brain3D = { create };

@@ -29,12 +29,29 @@
     burst:    { node: [88, 255, 155],  edge: [52, 224, 255],  sig: [178, 107, 255] },
   };
 
+  /* outline-space (x right, y down) → department region id, mirroring brain3d */
+  function regionOf2D(x, y) {
+    if (x > 0.5 && y > 0.35) return 6;                 /* 정산팀 — cerebellum bump */
+    if (y < -0.3) return 2;                            /* 마케팅팀 — top */
+    if (x > 0.5) return 1;                             /* 전략기획팀 — front */
+    if (x < -0.5) return 5;                            /* 시공팀 — rear */
+    if (y > 0.3 && Math.abs(x) < 0.35) return 7;       /* 법무팀 — bottom center */
+    if (x > 0) return 3;                               /* 영업팀 */
+    return 4;                                          /* 설계팀 */
+  }
+
+  function hexToRgb(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+
   function create(canvas) {
     const cx = canvas.getContext('2d');
     let cw, ch, nodes = [], edges = [], signals = [], rings = [];
     let state = 'idle';
     let burstUntil = 0;
     let raf = 0, dead = false, lastSpawn = 0;
+    let activeRegion = 0, regionRgb = [255, 255, 255];
 
     function resize() {
       const rect = canvas.parentElement.getBoundingClientRect();
@@ -63,6 +80,7 @@
           ph: Math.random() * Math.PI * 2,
           sp: Math.random() * 0.6 + 0.7,
           drift: Math.random() * Math.PI * 2,
+          region: regionOf2D(x, y),
         });
       }
       const maxD = scale * 0.34;
@@ -139,13 +157,15 @@
       }
 
       for (const n of nodes) {
+        const inRegion = activeRegion && n.region === activeRegion;
+        const nodeCol = inRegion ? regionRgb : col.node;
         const pulseSpeed = state === 'thinking' ? 0.012 : 0.0022;
         const pulse = 0.55 + 0.45 * Math.sin(t * pulseSpeed * n.sp + n.ph);
-        const r = n.r * (0.8 + pulse * 0.5);
+        const r = n.r * (0.8 + pulse * 0.5) * (inRegion ? 1.35 : 1);
         const grd = cx.createRadialGradient(n.x, n.y, 0, n.x, n.y, r * 4);
-        grd.addColorStop(0, `rgba(${col.node}, ${0.75 * pulse})`);
-        grd.addColorStop(0.35, `rgba(${col.node}, ${0.22 * pulse})`);
-        grd.addColorStop(1, `rgba(${col.node}, 0)`);
+        grd.addColorStop(0, `rgba(${nodeCol}, ${(inRegion ? 0.95 : 0.75) * pulse})`);
+        grd.addColorStop(0.35, `rgba(${nodeCol}, ${(inRegion ? 0.35 : 0.22) * pulse})`);
+        grd.addColorStop(1, `rgba(${nodeCol}, 0)`);
         cx.fillStyle = grd;
         cx.beginPath(); cx.arc(n.x, n.y, r * 4, 0, Math.PI * 2); cx.fill();
         cx.fillStyle = `rgba(235, 250, 255, ${0.5 + 0.5 * pulse})`;
@@ -173,6 +193,11 @@
       think() { state = 'thinking'; },
       idle() { state = 'idle'; },
       burst,
+      setDept(deptKey) {
+        const d = deptKey && window.DEPTS && window.DEPTS[deptKey];
+        activeRegion = d ? d.id : 0;
+        if (d) regionRgb = hexToRgb(d.color);
+      },
       destroy() {
         dead = true;
         cancelAnimationFrame(raf);

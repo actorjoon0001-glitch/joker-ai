@@ -177,6 +177,40 @@
 
   .stage .caption .sep { color: var(--cyan-dim); margin: 0 8px; }
 
+  /* active-department HUD chip */
+  .division {
+    position: absolute;
+    top: 6px;
+    left: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-tech);
+    font-size: 11px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 0.6s, transform 0.6s;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .division.active { opacity: 1; transform: translateY(0); }
+
+  .division .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 12px currentColor;
+    animation: dotPulse 1.6s ease-in-out infinite;
+  }
+
+  .division .label { color: var(--text-dim); }
+  .division .name { color: currentColor; font-weight: 600; letter-spacing: 0.12em; }
+
   /* ── chat ───────────────────────────── */
   .chat {
     flex: 1 1 auto;
@@ -360,6 +394,7 @@
   <div class="stage" id="stage">
     <canvas id="brain3d"></canvas>
     <canvas id="brain2d" hidden></canvas>
+    <div class="division" id="division"><span class="dot"></span><span class="label">DIVISION</span><span class="name" id="divisionName"></span></div>
     <div class="caption">Cortex Activity<span class="sep">|</span><span id="capState">Idle</span><span class="sep">|</span><span id="capMode">GPU</span></div>
   </div>
 
@@ -380,6 +415,7 @@
 <script src="vendor/three.min.js"></script>
 <script src="vendor/gsap.min.js"></script>
 <script src="js/particles.js"></script>
+<script src="js/depts.js"></script>
 <script src="js/brain2d.js"></script>
 <script src="js/brain3d.js"></script>
 <script src="js/chat.js"></script>

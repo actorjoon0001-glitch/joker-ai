@@ -32,12 +32,28 @@
   }
 
   /* Facade so chat.js keeps a stable reference across a 3D→2D fallback swap */
+  const divisionEl = document.getElementById('division');
+  const divisionName = document.getElementById('divisionName');
   const Brain = {
     impl: null,
+    dept: null,
     think() { this.impl && this.impl.think(); },
     idle() { this.impl && this.impl.idle(); },
     burst() { this.impl && this.impl.burst(); },
+    setDept(key) {
+      this.dept = key || null;
+      const d = this.dept && window.DEPTS[this.dept];
+      if (d) {
+        divisionEl.classList.add('active');
+        divisionEl.style.color = d.color;
+        divisionName.textContent = d.name;
+      } else {
+        divisionEl.classList.remove('active');
+      }
+      this.impl && this.impl.setDept(this.dept);
+    },
   };
+  window.__joker = Brain; /* debug/testing hook */
 
   function boot2D() {
     canvas3d.hidden = true;
@@ -57,6 +73,7 @@
         console.info('[joker] FPS governor: falling back to 2D brain');
         Brain.impl = null;
         boot2D();
+        if (Brain.dept) Brain.impl.setDept(Brain.dept);
       },
     });
   }
