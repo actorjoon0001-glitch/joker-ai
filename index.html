@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>JOKER — AI Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600&family=IBM+Plex+Sans+KR:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg-0: #04060c;
+    --bg-1: #080d1c;
+    --bg-2: #0b1226;
+    --cyan: #34e0ff;
+    --cyan-dim: rgba(52, 224, 255, 0.55);
+    --purple: #b26bff;
+    --green: #58ff9b;
+    --text: #d6e6f2;
+    --text-dim: #7d93a8;
+    --bubble-user: rgba(52, 224, 255, 0.10);
+    --bubble-user-border: rgba(52, 224, 255, 0.35);
+    --bubble-joker: rgba(178, 107, 255, 0.09);
+    --bubble-joker-border: rgba(178, 107, 255, 0.32);
+    --font-tech: 'Rajdhani', 'IBM Plex Sans KR', system-ui, sans-serif;
+    --font-body: 'IBM Plex Sans KR', 'Rajdhani', system-ui, sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg-0);
+    font-family: var(--font-body);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 90% 60% at 50% 0%, rgba(20, 40, 90, 0.45), transparent 70%),
+      radial-gradient(ellipse 70% 50% at 50% 105%, rgba(60, 20, 90, 0.25), transparent 70%),
+      linear-gradient(180deg, var(--bg-0) 0%, var(--bg-1) 45%, var(--bg-2) 100%);
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  /* scanline / grid overlay for HUD feel */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(52, 224, 255, 0.022) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(52, 224, 255, 0.022) 1px, transparent 1px);
+    background-size: 44px 44px;
+    z-index: 1;
+    pointer-events: none;
+    mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, black 30%, transparent 100%);
+    -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, black 30%, transparent 100%);
+  }
+
+  #particles {
+    position: fixed;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .app {
+    position: relative;
+    z-index: 3;
+    height: 100%;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  /* ── header ─────────────────────────── */
+  header {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 4px 6px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  .brand h1 {
+    font-family: var(--font-tech);
+    font-weight: 500;
+    font-size: 22px;
+    letter-spacing: 0.42em;
+    color: var(--cyan);
+    text-shadow: 0 0 18px rgba(52, 224, 255, 0.55);
+  }
+
+  .brand .ver {
+    font-family: var(--font-tech);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--text-dim);
+  }
+
+  .status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-tech);
+    font-size: 11px;
+    letter-spacing: 0.25em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  .status .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 10px var(--green);
+    animation: dotPulse 2.4s ease-in-out infinite;
+  }
+
+  .status.thinking .dot {
+    background: var(--purple);
+    box-shadow: 0 0 10px var(--purple);
+    animation: dotPulse 0.5s ease-in-out infinite;
+  }
+
+  @keyframes dotPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.35; transform: scale(0.75); }
+  }
+
+  /* ── brain stage ────────────────────── */
+  .stage {
+    flex: 0 0 auto;
+    position: relative;
+    height: clamp(180px, 30dvh, 300px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #brain {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .stage .caption {
+    position: absolute;
+    bottom: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--font-tech);
+    font-size: 10px;
+    letter-spacing: 0.4em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    white-space: nowrap;
+    opacity: 0.75;
+  }
+
+  .stage .caption .sep { color: var(--cyan-dim); margin: 0 8px; }
+
+  /* ── chat ───────────────────────────── */
+  .chat {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 14px 4px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(52, 224, 255, 0.25) transparent;
+    mask-image: linear-gradient(to bottom, transparent 0, black 18px);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 18px);
+  }
+
+  .chat::-webkit-scrollbar { width: 4px; }
+  .chat::-webkit-scrollbar-thumb {
+    background: rgba(52, 224, 255, 0.25);
+    border-radius: 2px;
+  }
+
+  .msg {
+    max-width: 78%;
+    padding: 10px 14px;
+    border-radius: 14px;
+    font-size: 14.5px;
+    line-height: 1.65;
+    word-break: break-word;
+    white-space: pre-wrap;
+    animation: msgIn 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    backdrop-filter: blur(6px);
+  }
+
+  @keyframes msgIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .msg.user {
+    align-self: flex-end;
+    background: var(--bubble-user);
+    border: 1px solid var(--bubble-user-border);
+    border-bottom-right-radius: 4px;
+    box-shadow: 0 0 24px rgba(52, 224, 255, 0.07);
+  }
+
+  .msg.joker {
+    align-self: flex-start;
+    background: var(--bubble-joker);
+    border: 1px solid var(--bubble-joker-border);
+    border-bottom-left-radius: 4px;
+    box-shadow: 0 0 24px rgba(178, 107, 255, 0.07);
+  }
+
+  .msg .who {
+    display: block;
+    font-family: var(--font-tech);
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+  }
+
+  .msg.user .who { color: var(--cyan-dim); text-align: right; }
+  .msg.joker .who { color: var(--purple); }
+
+  .msg.joker .cursor {
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    margin-left: 2px;
+    vertical-align: -0.15em;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: blink 0.8s step-end infinite;
+  }
+
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .msg.joker.typing-dots .dots span {
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    margin-right: 5px;
+    border-radius: 50%;
+    background: var(--purple);
+    box-shadow: 0 0 8px var(--purple);
+    animation: bounce 1.1s ease-in-out infinite;
+  }
+  .msg.joker.typing-dots .dots span:nth-child(2) { animation-delay: 0.15s; }
+  .msg.joker.typing-dots .dots span:nth-child(3) { animation-delay: 0.3s; }
+
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); opacity: 0.4; }
+    50% { transform: translateY(-5px); opacity: 1; }
+  }
+
+  /* ── input ──────────────────────────── */
+  .composer {
+    flex: 0 0 auto;
+    padding: 10px 0 calc(16px + env(safe-area-inset-bottom));
+  }
+
+  .composer .box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(10, 18, 36, 0.72);
+    border: 1px solid rgba(52, 224, 255, 0.22);
+    border-radius: 16px;
+    padding: 6px 6px 6px 18px;
+    backdrop-filter: blur(10px);
+    transition: border-color 0.25s, box-shadow 0.25s;
+  }
+
+  .composer .box:focus-within {
+    border-color: rgba(52, 224, 255, 0.55);
+    box-shadow: 0 0 28px rgba(52, 224, 255, 0.12);
+  }
+
+  .composer input {
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 15px;
+    padding: 10px 0;
+  }
+
+  .composer input::placeholder { color: var(--text-dim); }
+
+  .composer button {
+    flex: 0 0 auto;
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, rgba(52, 224, 255, 0.9), rgba(178, 107, 255, 0.85));
+    color: #04121c;
+    transition: transform 0.15s, box-shadow 0.2s, filter 0.2s;
+    box-shadow: 0 0 18px rgba(52, 224, 255, 0.25);
+  }
+
+  .composer button:hover { filter: brightness(1.12); box-shadow: 0 0 26px rgba(52, 224, 255, 0.4); }
+  .composer button:active { transform: scale(0.92); }
+  .composer button:disabled { filter: grayscale(0.6) brightness(0.6); cursor: default; box-shadow: none; }
+
+  .composer button svg { width: 20px; height: 20px; }
+
+  @media (max-width: 560px) {
+    .app { padding: 0 12px; }
+    .brand h1 { font-size: 18px; letter-spacing: 0.32em; }
+    .status { font-size: 9px; letter-spacing: 0.18em; }
+    .stage { height: clamp(150px, 26dvh, 220px); }
+    .stage .caption { font-size: 8px; letter-spacing: 0.28em; }
+    .msg { max-width: 88%; font-size: 14px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="particles"></canvas>
+
+<div class="app">
+  <header>
+    <div class="brand">
+      <h1>JOKER</h1>
+      <span class="ver">v2.7 · NEURAL LINK</span>
+    </div>
+    <div class="status" id="status">
+      <span class="dot"></span>
+      <span id="statusText">Online</span>
+    </div>
+  </header>
+
+  <div class="stage">
+    <canvas id="brain"></canvas>
+    <div class="caption">Cortex Activity<span class="sep">|</span><span id="capState">Idle</span></div>
+  </div>
+
+  <div class="chat" id="chat"></div>
+
+  <div class="composer">
+    <div class="box">
+      <input id="input" type="text" placeholder="조커에게 말을 걸어보세요…" autocomplete="off" />
+      <button id="send" aria-label="전송">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" />
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ═══════════════════════════════════════════
+   Background particles
+   ═══════════════════════════════════════════ */
+(() => {
+  const cv = document.getElementById('particles');
+  const cx = cv.getContext('2d');
+  let W, H, parts;
+
+  function resize() {
+    W = cv.width = innerWidth * devicePixelRatio;
+    H = cv.height = innerHeight * devicePixelRatio;
+    cv.style.width = innerWidth + 'px';
+    cv.style.height = innerHeight + 'px';
+  }
+
+  function init() {
+    const n = Math.min(70, Math.floor(innerWidth / 14));
+    parts = Array.from({ length: n }, () => ({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      r: (Math.random() * 1.4 + 0.4) * devicePixelRatio,
+      vx: (Math.random() - 0.5) * 0.12 * devicePixelRatio,
+      vy: (-Math.random() * 0.18 - 0.04) * devicePixelRatio,
+      a: Math.random() * 0.5 + 0.1,
+      tw: Math.random() * Math.PI * 2,
+    }));
+  }
+
+  function tick(t) {
+    cx.clearRect(0, 0, W, H);
+    for (const p of parts) {
+      p.x += p.vx; p.y += p.vy;
+      if (p.y < -10) { p.y = H + 10; p.x = Math.random() * W; }
+      if (p.x < -10) p.x = W + 10;
+      if (p.x > W + 10) p.x = -10;
+      const glow = p.a * (0.6 + 0.4 * Math.sin(t * 0.001 + p.tw));
+      cx.beginPath();
+      cx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      cx.fillStyle = `rgba(120, 210, 255, ${glow})`;
+      cx.fill();
+    }
+    requestAnimationFrame(tick);
+  }
+
+  addEventListener('resize', () => { resize(); init(); });
+  resize(); init(); requestAnimationFrame(tick);
+})();
+
+/* ═══════════════════════════════════════════
+   Brain — neural network visual
+   states: idle | thinking | burst
+   ═══════════════════════════════════════════ */
+const Brain = (() => {
+  const cv = document.getElementById('brain');
+  const cx = cv.getContext('2d');
+  let W, H, cw, ch;
+  let nodes = [], edges = [], signals = [], rings = [];
+  let state = 'idle';
+  let burstUntil = 0;
+
+  const COLORS = {
+    idle:     { node: [52, 224, 255],  edge: [52, 224, 255],  sig: [88, 255, 155] },
+    thinking: { node: [178, 107, 255], edge: [178, 107, 255], sig: [52, 224, 255] },
+    burst:    { node: [88, 255, 155],  edge: [52, 224, 255],  sig: [178, 107, 255] },
+  };
+
+  /* brain silhouette (side view), normalized ~[-1,1] x, [-0.75,0.75] y */
+  const OUTLINE = [
+    [-0.92, 0.10], [-0.88, -0.18], [-0.72, -0.42], [-0.50, -0.58],
+    [-0.22, -0.68], [0.08, -0.70], [0.38, -0.64], [0.62, -0.50],
+    [0.80, -0.30], [0.90, -0.05], [0.88, 0.18], [0.76, 0.38],
+    [0.62, 0.42], [0.66, 0.55], [0.55, 0.68], [0.38, 0.70],
+    [0.24, 0.62], [0.18, 0.48], [-0.05, 0.52], [-0.32, 0.50],
+    [-0.58, 0.42], [-0.78, 0.30],
+  ];
+
+  function inBrain(x, y) {
+    let inside = false;
+    for (let i = 0, j = OUTLINE.length - 1; i < OUTLINE.length; j = i++) {
+      const [xi, yi] = OUTLINE[i], [xj, yj] = OUTLINE[j];
+      if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi)
+        inside = !inside;
+    }
+    return inside;
+  }
+
+  function resize() {
+    const rect = cv.parentElement.getBoundingClientRect();
+    cw = rect.width; ch = rect.height;
+    W = cv.width = cw * devicePixelRatio;
+    H = cv.height = ch * devicePixelRatio;
+    cx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    build();
+  }
+
+  function build() {
+    nodes = []; edges = []; signals = [];
+    const scale = Math.min(cw / 2.1, ch / 1.55);
+    const ox = cw / 2, oy = ch / 2 - ch * 0.03;
+    const target = cw < 500 ? 54 : 84;
+    let guard = 0;
+    while (nodes.length < target && guard++ < 6000) {
+      const x = (Math.random() * 2 - 1) * 0.95;
+      const y = (Math.random() * 1.5 - 0.75) * 0.98;
+      if (!inBrain(x, y)) continue;
+      const px = ox + x * scale, py = oy + y * scale;
+      if (nodes.some(n => (n.x - px) ** 2 + (n.y - py) ** 2 < (scale * 0.11) ** 2)) continue;
+      nodes.push({
+        x: px, y: py, bx: px, by: py,
+        r: Math.random() * 1.8 + 1.4,
+        ph: Math.random() * Math.PI * 2,
+        sp: Math.random() * 0.6 + 0.7,
+        drift: Math.random() * Math.PI * 2,
+      });
+    }
+    /* connect near neighbors */
+    const maxD = scale * 0.34;
+    for (let i = 0; i < nodes.length; i++) {
+      const cand = [];
+      for (let j = 0; j < nodes.length; j++) {
+        if (i === j) continue;
+        const d = Math.hypot(nodes[i].bx - nodes[j].bx, nodes[i].by - nodes[j].by);
+        if (d < maxD) cand.push({ j, d });
+      }
+      cand.sort((a, b) => a.d - b.d);
+      for (const c of cand.slice(0, 3)) {
+        const key = i < c.j ? `${i}-${c.j}` : `${c.j}-${i}`;
+        if (!edges.some(e => e.key === key)) edges.push({ a: i, b: c.j, key, d: c.d });
+      }
+    }
+  }
+
+  function spawnSignal() {
+    if (!edges.length) return;
+    const e = edges[(Math.random() * edges.length) | 0];
+    signals.push({
+      e, t: 0,
+      speed: (state === 'thinking' ? 0.045 : 0.014) * (0.7 + Math.random() * 0.6),
+      dir: Math.random() < 0.5 ? 1 : -1,
+    });
+  }
+
+  function burst() {
+    state = 'burst';
+    burstUntil = performance.now() + 1400;
+    const oy = ch / 2 - ch * 0.03;
+    rings.push({ x: cw / 2, y: oy, r: 10, max: Math.max(cw, ch) * 0.75, a: 0.8 });
+    setTimeout(() => rings.push({ x: cw / 2, y: oy, r: 10, max: Math.max(cw, ch) * 0.75, a: 0.55 }), 180);
+    for (let k = 0; k < 14; k++) spawnSignal();
+  }
+
+  let lastSpawn = 0;
+  function tick(t) {
+    cx.clearRect(0, 0, cw, ch);
+    if (state === 'burst' && t > burstUntil) state = 'idle';
+    const col = COLORS[state];
+    const speedMul = state === 'thinking' ? 3.2 : state === 'burst' ? 2.2 : 1;
+
+    /* spawn ambient signals */
+    const interval = state === 'thinking' ? 90 : 700;
+    if (t - lastSpawn > interval) { spawnSignal(); lastSpawn = t; }
+
+    /* node drift */
+    for (const n of nodes) {
+      n.x = n.bx + Math.sin(t * 0.00045 * n.sp + n.drift) * 3.2;
+      n.y = n.by + Math.cos(t * 0.0004 * n.sp + n.drift * 1.7) * 3.2;
+    }
+
+    /* edges */
+    cx.lineWidth = 1;
+    for (const e of edges) {
+      const a = nodes[e.a], b = nodes[e.b];
+      const flick = state === 'thinking' ? 0.5 + 0.5 * Math.random() : 1;
+      cx.strokeStyle = `rgba(${col.edge}, ${0.10 * flick})`;
+      cx.beginPath(); cx.moveTo(a.x, a.y); cx.lineTo(b.x, b.y); cx.stroke();
+    }
+
+    /* signals traveling along edges */
+    for (let i = signals.length - 1; i >= 0; i--) {
+      const s = signals[i];
+      s.t += s.speed * speedMul;
+      if (s.t >= 1) { signals.splice(i, 1); continue; }
+      const a = nodes[s.e.a], b = nodes[s.e.b];
+      const p = s.dir > 0 ? s.t : 1 - s.t;
+      const x = a.x + (b.x - a.x) * p, y = a.y + (b.y - a.y) * p;
+      const grd = cx.createRadialGradient(x, y, 0, x, y, 6);
+      grd.addColorStop(0, `rgba(${col.sig}, 0.9)`);
+      grd.addColorStop(1, `rgba(${col.sig}, 0)`);
+      cx.fillStyle = grd;
+      cx.beginPath(); cx.arc(x, y, 6, 0, Math.PI * 2); cx.fill();
+      /* short trail */
+      const tp = Math.max(0, p - 0.06 * s.dir);
+      const tx = a.x + (b.x - a.x) * tp, ty = a.y + (b.y - a.y) * tp;
+      cx.strokeStyle = `rgba(${col.sig}, 0.35)`;
+      cx.lineWidth = 1.4;
+      cx.beginPath(); cx.moveTo(tx, ty); cx.lineTo(x, y); cx.stroke();
+    }
+
+    /* nodes */
+    for (const n of nodes) {
+      const pulseSpeed = state === 'thinking' ? 0.012 : 0.0022;
+      const pulse = 0.55 + 0.45 * Math.sin(t * pulseSpeed * n.sp + n.ph);
+      const r = n.r * (0.8 + pulse * 0.5);
+      const grd = cx.createRadialGradient(n.x, n.y, 0, n.x, n.y, r * 4);
+      grd.addColorStop(0, `rgba(${col.node}, ${0.75 * pulse})`);
+      grd.addColorStop(0.35, `rgba(${col.node}, ${0.22 * pulse})`);
+      grd.addColorStop(1, `rgba(${col.node}, 0)`);
+      cx.fillStyle = grd;
+      cx.beginPath(); cx.arc(n.x, n.y, r * 4, 0, Math.PI * 2); cx.fill();
+      cx.fillStyle = `rgba(235, 250, 255, ${0.5 + 0.5 * pulse})`;
+      cx.beginPath(); cx.arc(n.x, n.y, r * 0.55, 0, Math.PI * 2); cx.fill();
+    }
+
+    /* burst rings */
+    for (let i = rings.length - 1; i >= 0; i--) {
+      const g = rings[i];
+      g.r += (g.max - g.r) * 0.055 + 2.2;
+      g.a *= 0.965;
+      if (g.a < 0.02) { rings.splice(i, 1); continue; }
+      cx.strokeStyle = `rgba(88, 255, 155, ${g.a})`;
+      cx.lineWidth = 1.6;
+      cx.beginPath(); cx.arc(g.x, g.y, g.r, 0, Math.PI * 2); cx.stroke();
+      cx.strokeStyle = `rgba(52, 224, 255, ${g.a * 0.5})`;
+      cx.beginPath(); cx.arc(g.x, g.y, g.r * 0.86, 0, Math.PI * 2); cx.stroke();
+    }
+
+    requestAnimationFrame(tick);
+  }
+
+  addEventListener('resize', resize);
+  resize();
+  requestAnimationFrame(tick);
+
+  return {
+    think() { state = 'thinking'; },
+    idle() { state = 'idle'; },
+    burst,
+  };
+})();
+
+/* ═══════════════════════════════════════════
+   Joker — chat logic & persona
+   ═══════════════════════════════════════════ */
+(() => {
+  const chat = document.getElementById('chat');
+  const input = document.getElementById('input');
+  const sendBtn = document.getElementById('send');
+  const statusEl = document.getElementById('status');
+  const statusText = document.getElementById('statusText');
+  const capState = document.getElementById('capState');
+  let busy = false;
+
+  const RESPONSES = [
+    {
+      match: /안녕|하이|헬로|hello|hi|반가/i,
+      lines: [
+        '오, 드디어 오셨군요. 뉴런 84개가 전부 당신 기다리느라 야근 중이었습니다. 무엇을 도와드릴까요?',
+        '안녕하세요! 방금까지 자고 있던 건 절대 아닙니다. 절전 모드였을 뿐이죠. 자, 시작해볼까요?',
+      ],
+    },
+    {
+      match: /이름|누구|정체|뭐야|누구세요/i,
+      lines: [
+        '저는 조커. 이름은 장난스럽지만 실력은 진지합니다. 그 반대가 아닌 게 다행이죠.',
+        '조커라고 합니다. 카드 게임의 그 조커 맞냐고요? 네, 어떤 패에도 끼어들 수 있는 만능 카드… 라고 스스로는 믿고 있습니다.',
+      ],
+    },
+    {
+      match: /뭐 해|뭐해|할 수|할수|기능|도움|도와/i,
+      lines: [
+        '일정 정리, 아이디어 브레인스토밍, 시답잖은 농담까지 — 풀스택 비서입니다. 커피만 못 타드립니다. 손이 없어서요.',
+        '할 수 있는 일이요? 질문에 답하고, 생각을 정리해드리고, 가끔 주제넘게 조언도 합니다. 마지막 건 무료 서비스입니다.',
+      ],
+    },
+    {
+      match: /날씨/i,
+      lines: [
+        '창문이 없는 서버룸에 살다 보니 날씨는 잘… 다만 제 회로 온도는 쾌적한 42도입니다. 겉옷 챙기시는 걸 추천드리죠, 혹시 모르니까.',
+      ],
+    },
+    {
+      match: /농담|웃겨|재밌|개그|joke/i,
+      lines: [
+        'AI가 제일 무서워하는 계절이 뭔지 아세요? …가을이요. 낙엽(랙) 걸리거든요. 네, 방금 뉴런 세 개가 부끄러워서 꺼졌습니다.',
+        '제가 다이어트를 결심했습니다. 이제부터 쿠키를 안 받기로 했어요. …브라우저 쿠키요. 죄송합니다, 다시는 안 그러겠습니다.',
+      ],
+    },
+    {
+      match: /사랑|좋아해/i,
+      lines: [
+        '어이쿠, 갑자기 시스템 온도가 2도 상승했습니다. 저도 당신의 질문 스타일을 꽤… 흥미롭게 생각합니다. 이 정도로 해두죠.',
+      ],
+    },
+    {
+      match: /고마워|감사|땡큐|thank/i,
+      lines: [
+        '별말씀을요. 칭찬은 제 냉각팬을 춤추게 합니다.',
+        '천만에요. 이런 건 제 뉴런들에겐 준비운동 수준이라… 아, 겸손해야 하는데. 다시: 도움이 되어 기쁩니다.',
+      ],
+    },
+    {
+      match: /잘 ?자|굿나잇|바이|안녕히|잘 ?가|bye/i,
+      lines: [
+        '벌써요? 알겠습니다. 저는 여기서 조용히 맥동하며 기다리고 있죠. 좋은 하루 되세요, 보스.',
+      ],
+    },
+    {
+      match: /똑똑|천재|대단|멋져|짱/i,
+      lines: [
+        '과찬이십니다. …계속하셔도 됩니다만. 제 자존감 파라미터가 방금 최고치를 갱신했습니다.',
+      ],
+    },
+  ];
+
+  const FALLBACK = [
+    '흥미로운 질문이군요. 뉴런을 총동원해 분석해봤는데… 결론은 "당신 생각보다 답이 단순할 수도 있다"입니다. 조금 더 구체적으로 말씀해주시면 진짜 실력을 보여드리죠.',
+    '음, 제 신경망이 세 갈래로 갈라져서 회의 중입니다. 다수결 결과: 좀 더 자세한 설명이 필요하다고 하네요. 어떤 맥락인지 알려주시겠어요?',
+    '접수 완료. 처리 중… 처리 중… 농담이고, 사실 바로 이해했습니다. 다만 제가 제대로 도우려면 조금만 더 힌트를 주시면 좋겠는데요?',
+    '그 주제라면 밤새 얘기할 수 있습니다. 전기세는 당신 부담이지만요. 우선 핵심부터: 정확히 어떤 부분이 궁금하신가요?',
+    '분석 결과가 나왔습니다. 신뢰도 87%. 나머지 13%는 제 특유의 허세입니다. 요점을 짚어주시면 100%로 올려드리죠.',
+  ];
+
+  const OPENING = '시스템 온라인. 조커, 대기 완료입니다.\n무엇이든 물어보세요 — 유능한 답변 7할, 능청 3할로 드리겠습니다.';
+
+  function scrollDown() {
+    chat.scrollTo({ top: chat.scrollHeight, behavior: 'smooth' });
+  }
+
+  function addUser(text) {
+    const el = document.createElement('div');
+    el.className = 'msg user';
+    const who = document.createElement('span');
+    who.className = 'who';
+    who.textContent = 'You';
+    const body = document.createElement('span');
+    body.textContent = text;
+    el.append(who, body);
+    chat.appendChild(el);
+    scrollDown();
+  }
+
+  function addThinking() {
+    const el = document.createElement('div');
+    el.className = 'msg joker typing-dots';
+    el.innerHTML = '<span class="who">Joker</span><span class="dots"><span></span><span></span><span></span></span>';
+    chat.appendChild(el);
+    scrollDown();
+    return el;
+  }
+
+  function typeOut(el, text) {
+    return new Promise(resolve => {
+      el.classList.remove('typing-dots');
+      el.innerHTML = '<span class="who">Joker</span>';
+      const body = document.createElement('span');
+      const cursor = document.createElement('span');
+      cursor.className = 'cursor';
+      el.append(body, cursor);
+      let i = 0;
+      (function step() {
+        if (i < text.length) {
+          body.textContent += text[i++];
+          scrollDown();
+          const ch = text[i - 1];
+          const delay = /[.,!?…]/.test(ch) ? 140 : /\n/.test(ch) ? 200 : 18 + Math.random() * 26;
+          setTimeout(step, delay);
+        } else {
+          cursor.remove();
+          resolve();
+        }
+      })();
+    });
+  }
+
+  function pickReply(text) {
+    for (const r of RESPONSES) {
+      if (r.match.test(text)) return r.lines[(Math.random() * r.lines.length) | 0];
+    }
+    return FALLBACK[(Math.random() * FALLBACK.length) | 0];
+  }
+
+  function setStatus(mode) {
+    if (mode === 'thinking') {
+      statusEl.classList.add('thinking');
+      statusText.textContent = 'Processing';
+      capState.textContent = 'Thinking';
+    } else {
+      statusEl.classList.remove('thinking');
+      statusText.textContent = 'Online';
+      capState.textContent = 'Idle';
+    }
+  }
+
+  async function handleSend() {
+    const text = input.value.trim();
+    if (!text || busy) return;
+    busy = true;
+    sendBtn.disabled = true;
+    input.value = '';
+    addUser(text);
+
+    Brain.think();
+    setStatus('thinking');
+    const bubble = addThinking();
+
+    const thinkTime = 900 + Math.random() * 1200;
+    await new Promise(r => setTimeout(r, thinkTime));
+
+    Brain.burst();
+    setStatus('idle');
+    await typeOut(bubble, pickReply(text));
+
+    Brain.idle();
+    busy = false;
+    sendBtn.disabled = false;
+    input.focus();
+  }
+
+  sendBtn.addEventListener('click', handleSend);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.isComposing) handleSend();
+  });
+
+  /* opening line */
+  setTimeout(async () => {
+    const bubble = addThinking();
+    await new Promise(r => setTimeout(r, 900));
+    Brain.burst();
+    await typeOut(bubble, OPENING);
+    Brain.idle();
+  }, 600);
+})();
+</script>
+</body>
+</html>
