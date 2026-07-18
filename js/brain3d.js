@@ -209,7 +209,7 @@
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 50);
-    camera.position.set(0, 0.05, 3.6);
+    camera.position.set(0, 0.05, 3.05);
 
     const uniforms = {
       uTime: { value: 0 },

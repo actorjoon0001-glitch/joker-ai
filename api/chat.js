@@ -90,4 +90,4 @@ export default async function handler(req, res) {
   }
 }
 
-export const config = { supportsResponseStreaming: true };
+export const config = { supportsResponseStreaming: true, maxDuration: 60 };
