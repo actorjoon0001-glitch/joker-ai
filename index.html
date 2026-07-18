@@ -366,6 +366,148 @@
 
   .composer button svg { width: 20px; height: 20px; }
 
+  /* ── settings (company memory) panel ── */
+  .head-right { display: flex; align-items: center; gap: 14px; }
+
+  .gear {
+    background: none;
+    border: 1px solid rgba(52, 224, 255, 0.22);
+    border-radius: 10px;
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s, transform 0.4s;
+  }
+  .gear:hover { color: var(--cyan); border-color: rgba(52, 224, 255, 0.5); transform: rotate(60deg); }
+  .gear svg { width: 17px; height: 17px; }
+
+  .panel-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 4, 10, 0.55);
+    backdrop-filter: blur(3px);
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 8;
+  }
+  .panel-backdrop.open { opacity: 1; }
+
+  .settings {
+    position: fixed;
+    top: 0;
+    right: 0;
+    height: 100dvh;
+    width: min(420px, 100vw);
+    background: rgba(8, 13, 28, 0.96);
+    border-left: 1px solid rgba(52, 224, 255, 0.25);
+    box-shadow: -20px 0 60px rgba(0, 0, 0, 0.5);
+    z-index: 9;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 22px calc(20px + env(safe-area-inset-bottom));
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .settings.open { transform: translateX(0); }
+
+  .settings-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .settings-head h2 {
+    font-family: var(--font-tech);
+    font-weight: 500;
+    font-size: 15px;
+    letter-spacing: 0.3em;
+    color: var(--cyan);
+    text-shadow: 0 0 14px rgba(52, 224, 255, 0.45);
+  }
+  .settings-head button {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 22px;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .settings-head button:hover { color: var(--text); }
+
+  .settings-desc {
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text-dim);
+    margin-bottom: 14px;
+  }
+
+  .settings-fields {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-right: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(52, 224, 255, 0.25) transparent;
+  }
+
+  .settings .field label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-family: var(--font-tech);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    color: var(--text);
+    margin-bottom: 5px;
+  }
+  .settings .field label .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 8px currentColor;
+  }
+  .settings .field textarea {
+    width: 100%;
+    resize: vertical;
+    min-height: 44px;
+    background: rgba(10, 18, 36, 0.7);
+    border: 1px solid rgba(52, 224, 255, 0.18);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 13px;
+    line-height: 1.55;
+    padding: 9px 11px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .settings .field textarea:focus { border-color: rgba(52, 224, 255, 0.5); }
+  .settings .field textarea::placeholder { color: rgba(125, 147, 168, 0.55); }
+
+  .settings-save {
+    margin-top: 14px;
+    padding: 12px;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    font-family: var(--font-tech);
+    font-size: 14px;
+    letter-spacing: 0.25em;
+    color: #04121c;
+    background: linear-gradient(135deg, rgba(52, 224, 255, 0.9), rgba(178, 107, 255, 0.85));
+    box-shadow: 0 0 18px rgba(52, 224, 255, 0.25);
+    transition: filter 0.2s;
+  }
+  .settings-save:hover { filter: brightness(1.12); }
+  .settings-save.saved { background: linear-gradient(135deg, rgba(88, 255, 155, 0.9), rgba(52, 224, 255, 0.85)); }
+
   @media (max-width: 560px) {
     .app { padding: 0 12px; }
     .brand h1 { font-size: 18px; letter-spacing: 0.32em; }
@@ -385,9 +527,17 @@
       <h1>JOKER</h1>
       <span class="ver">v3.0 · NEURAL LINK</span>
     </div>
-    <div class="status" id="status">
-      <span class="dot"></span>
-      <span id="statusText">Online</span>
+    <div class="head-right">
+      <div class="status" id="status">
+        <span class="dot"></span>
+        <span id="statusText">Online</span>
+      </div>
+      <button class="gear" id="settingsBtn" aria-label="컴퍼니 메모리 설정">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
     </div>
   </header>
 
@@ -412,10 +562,27 @@
   </div>
 </div>
 
+<div class="panel-backdrop" id="panelBackdrop" hidden></div>
+<aside class="settings" id="settingsPanel" hidden>
+  <div class="settings-head">
+    <h2>COMPANY MEMORY</h2>
+    <button id="settingsClose" aria-label="닫기">×</button>
+  </div>
+  <p class="settings-desc">조커가 항상 기억할 회사·부서 정보를 적어두세요. 대화할 때 자동으로 참고합니다. 내용은 이 브라우저에 저장됩니다.</p>
+  <div class="settings-fields" id="settingsFields">
+    <div class="field">
+      <label><span class="dot" style="color:#34e0ff"></span>회사 공통</label>
+      <textarea id="know-company" rows="3" maxlength="2000" placeholder="회사 소개, 상준님 호칭, 전반적인 상황, 조커가 늘 알고 있어야 할 것…"></textarea>
+    </div>
+  </div>
+  <button class="settings-save" id="settingsSave">저장</button>
+</aside>
+
 <script src="vendor/three.min.js"></script>
 <script src="vendor/gsap.min.js"></script>
 <script src="js/particles.js"></script>
 <script src="js/depts.js"></script>
+<script src="js/settings.js"></script>
 <script src="js/brain2d.js"></script>
 <script src="js/brain3d.js"></script>
 <script src="js/chat.js"></script>

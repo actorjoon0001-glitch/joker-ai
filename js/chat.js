@@ -169,7 +169,10 @@
         const res = await fetch(API_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: history.slice(-MAX_HISTORY) }),
+          body: JSON.stringify({
+            messages: history.slice(-MAX_HISTORY),
+            knowledge: window.JokerKnowledge ? window.JokerKnowledge.get() : null,
+          }),
           signal: ctrl.signal,
         });
         if (!res.ok || !res.body) {
