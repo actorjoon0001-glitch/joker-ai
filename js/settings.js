@@ -1,6 +1,7 @@
-/* Company memory panel — lets the owner register company/department knowledge
-   from the page itself. Stored in localStorage and sent with each chat request;
-   the backend injects it into Joker's system prompt.
+/* Settings panel (MEMORY / SKILLS tabs). This file owns the panel shell, tab
+   switching, and the company-memory tab: knowledge is stored in localStorage and
+   sent with each chat request; the backend injects it into Joker's system prompt.
+   The SKILLS tab content is managed by skills.js.
    Exposes window.JokerKnowledge.get(). */
 (() => {
   'use strict';
@@ -55,9 +56,26 @@
   const companyTa = document.getElementById('know-company');
   const deptTas = [...fields.querySelectorAll('textarea[data-dept]')];
 
+  /* MEMORY / SKILLS tabs */
+  const titleEl = document.getElementById('settingsTitle');
+  const tabBtns = [...document.querySelectorAll('#settingsTabs button')];
+  const panes = {
+    memory: document.getElementById('paneMemory'),
+    skills: document.getElementById('paneSkills'),
+  };
+  const TITLES = { memory: 'COMPANY MEMORY', skills: 'SKILLS' };
+
+  function setTab(name) {
+    for (const b of tabBtns) b.classList.toggle('active', b.dataset.tab === name);
+    for (const [key, pane] of Object.entries(panes)) pane.hidden = key !== name;
+    if (titleEl) titleEl.textContent = TITLES[name] || TITLES.memory;
+  }
+  for (const b of tabBtns) b.addEventListener('click', () => setTab(b.dataset.tab));
+
   function open() {
     companyTa.value = knowledge.company || '';
     for (const ta of deptTas) ta.value = (knowledge.depts || {})[ta.dataset.dept] || '';
+    if (window.JokerSkills) window.JokerSkills.renderUI(); /* discard unsaved edits */
     panel.hidden = false;
     backdrop.hidden = false;
     requestAnimationFrame(() => {
@@ -80,6 +98,7 @@
       ),
     };
     save(knowledge);
+    if (window.JokerSkills) window.JokerSkills.saveFromUI();
     saveBtn.textContent = '저장 완료 ✓';
     saveBtn.classList.add('saved');
     setTimeout(() => {

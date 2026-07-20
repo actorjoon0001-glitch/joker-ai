@@ -53,6 +53,27 @@ function buildKnowledgeBlock(k) {
   );
 }
 
+/* Matched skills (frontend keyword match on the latest user message) → system
+   prompt block. Unlike memory, skills arrive only on the requests they apply to.
+   Everything is length- and count-capped; returns null when nothing matched. */
+function buildSkillBlock(skills) {
+  if (!Array.isArray(skills) || !skills.length) return null;
+  const out = [];
+  for (const s of skills.slice(0, 3)) {
+    if (!s || typeof s.name !== 'string' || typeof s.body !== 'string') continue;
+    const name = s.name.trim().slice(0, 40);
+    const body = s.body.trim().slice(0, 4000);
+    if (!name || !body) continue;
+    out.push('◆ ' + name + '\n' + body);
+  }
+  if (!out.length) return null;
+  return (
+    '\n\n[활성 스킬 — 이번 요청에 적용할 업무 지침]\n' +
+    out.join('\n\n') +
+    '\n위 지침은 상준님이 직접 등록한 업무 방법이야. 이번 답변에서 톤·양식·순서를 이 지침대로 처리해.'
+  );
+}
+
 /* Keep only well-formed {role, content} string turns, ensure the sequence starts
    with a user turn, and cap the length. */
 function sanitizeHistory(messages) {
@@ -82,6 +103,7 @@ export default async function handler(req, res) {
     return;
   }
   const knowledgeBlock = buildKnowledgeBlock(req.body && req.body.knowledge);
+  const skillBlock = buildSkillBlock(req.body && req.body.skills);
 
   const client = new Anthropic();
   let wrote = false;
@@ -100,7 +122,7 @@ export default async function handler(req, res) {
       max_tokens: 2048,
       thinking: { type: 'adaptive' },
       output_config: { effort: 'medium' },
-      system: knowledgeBlock ? SYSTEM_PROMPT + knowledgeBlock : SYSTEM_PROMPT,
+      system: SYSTEM_PROMPT + (knowledgeBlock || '') + (skillBlock || ''),
       messages: history,
     });
 
