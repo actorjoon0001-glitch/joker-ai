@@ -75,7 +75,7 @@
       }
     }
 
-    function addUser(text) {
+    function addUser(text, activeSkills) {
       const el = document.createElement('div');
       el.className = 'msg user';
       const who = document.createElement('span');
@@ -84,6 +84,12 @@
       const body = document.createElement('span');
       body.textContent = text;
       el.append(who, body);
+      if (activeSkills && activeSkills.length) {
+        const badge = document.createElement('span');
+        badge.className = 'skill-badge';
+        badge.textContent = '⚡ SKILL · ' + activeSkills.map(s => s.name).join(', ');
+        el.appendChild(badge);
+      }
       chat.appendChild(el);
       scrollDown();
     }
@@ -150,7 +156,7 @@
     /* Stream the assistant reply from the backend into the typewriter. The server
        may prefix the stream with a control header "\x00dept:<key>\x00" carrying the
        department classification. Returns {full, dept}; throws with .gotText flag. */
-    async function streamFromBackend(tw) {
+    async function streamFromBackend(tw, activeSkills) {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
       let gotText = false;
@@ -172,6 +178,7 @@
           body: JSON.stringify({
             messages: history.slice(-MAX_HISTORY),
             knowledge: window.JokerKnowledge ? window.JokerKnowledge.get() : null,
+            skills: activeSkills,
           }),
           signal: ctrl.signal,
         });
@@ -230,7 +237,12 @@
       sendBtn.disabled = true;
       input.value = '';
 
-      addUser(text);
+      /* skills fire on the latest user message only; badge shown only when the
+         backend will actually apply them */
+      const activeSkills =
+        backendAvailable && window.JokerSkills ? window.JokerSkills.match(text) : null;
+
+      addUser(text, activeSkills);
       history.push({ role: 'user', content: text });
 
       Brain.think();
@@ -243,7 +255,7 @@
       if (backendAvailable) {
         const tw = makeTypewriter(bubble);
         try {
-          const result = await streamFromBackend(tw);
+          const result = await streamFromBackend(tw, activeSkills);
           reply = result.full;
           /* server didn't classify (e.g. model skipped the tag) → keyword fallback */
           if (!result.dept) applyDept(window.classifyDept(text + ' ' + reply));
