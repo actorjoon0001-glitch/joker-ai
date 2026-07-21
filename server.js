@@ -6,6 +6,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import chatHandler from './api/chat.js';
+import memoryHandler from './api/memory.js';
+import historyHandler from './api/history.js';
+
+const API_ROUTES = {
+  '/api/chat': chatHandler,
+  '/api/memory': memoryHandler,
+  '/api/history': historyHandler,
+};
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
@@ -45,14 +53,16 @@ function extendRes(res) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
-  if (url.pathname === '/api/chat') {
+  const apiHandler = API_ROUTES[url.pathname];
+  if (apiHandler) {
     try {
       const raw = await readBody(req);
       req.body = raw ? JSON.parse(raw) : {};
     } catch {
       req.body = {};
     }
-    await chatHandler(req, extendRes(res));
+    req.query = Object.fromEntries(url.searchParams);
+    await apiHandler(req, extendRes(res));
     return;
   }
 

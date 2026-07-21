@@ -28,8 +28,21 @@
 (localStorage)에 저장되고 매 대화마다 조커의 시스템 프롬프트에 자동
 주입되어, 조커가 이미 알고 있는 비서처럼 응대합니다.
 
-브라우저별 저장이므로 기기 간 공유가 필요해지면 Vercel KV 등 서버 저장소로
-확장하면 됩니다 (`api/chat.js`의 `buildKnowledgeBlock` 지점).
+Supabase가 연결되어 있으면 저장 시 서버에도 동기화되어 **모든 기기에서
+같은 내용을 공유**합니다. 연결 전에는 브라우저(localStorage)에만 저장됩니다.
+
+## Supabase 연동 (컴퍼니 메모리 공유 + 대화 기록 저장)
+
+1. Supabase 대시보드 → **SQL Editor** → `supabase/setup.sql` 내용을 붙여넣고 Run (1회)
+2. 끝. 이후부터 자동으로:
+   - 컴퍼니 메모리가 Supabase에 저장되어 PC/폰 어디서든 공유
+   - 대화가 저장되고, 페이지를 새로 열면 최근 30개 메시지 복원 (마지막 부서 영역도 복원)
+
+기본값으로 이 프로젝트의 Supabase URL/publishable key가 코드에 들어 있으며
+(`api/_lib/db.js`), 환경 변수 `SUPABASE_URL` / `SUPABASE_KEY`로 교체할 수
+있습니다. publishable key는 공개 가능하도록 설계된 키이고, 접근 범위는
+`setup.sql`의 RLS 정책(두 테이블 한정)으로 제한됩니다. 테이블이 아직 없으면
+API가 503을 반환하고 프론트는 조용히 로컬 저장으로 폴백합니다.
 
 ## 스킬 (업무 절차 등록)
 

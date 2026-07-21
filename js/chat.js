@@ -226,8 +226,38 @@
       }
     }
 
+    let currentDept = null;
     function applyDept(deptKey) {
-      Brain.setDept(deptKey && deptKey !== 'general' ? deptKey : null);
+      currentDept = deptKey && deptKey !== 'general' ? deptKey : null;
+      Brain.setDept(currentDept);
+    }
+
+    /* render a stored (already-typed) message without the typewriter */
+    function addStored(role, content) {
+      const el = document.createElement('div');
+      el.className = role === 'user' ? 'msg user' : 'msg joker';
+      const who = document.createElement('span');
+      who.className = 'who';
+      who.textContent = role === 'user' ? 'You' : 'Joker';
+      const body = document.createElement('span');
+      body.textContent = content;
+      el.append(who, body);
+      chat.appendChild(el);
+    }
+
+    /* persist a finished turn to the server (fire-and-forget) */
+    function persistTurn(userText, replyText) {
+      if (!backendAvailable) return;
+      fetch('api/history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [
+            { role: 'user', content: userText },
+            { role: 'assistant', content: replyText, dept: currentDept },
+          ],
+        }),
+      }).catch(() => {});
     }
 
     async function handleSend() {
@@ -261,6 +291,7 @@
           if (!result.dept) applyDept(window.classifyDept(text + ' ' + reply));
           tw.close();
           await tw.done;
+          persistTurn(text, reply);
         } catch (err) {
           console.warn('[joker] backend failed:', err);
           tw.close();
@@ -318,8 +349,29 @@
       if (e.key === 'Enter' && !e.isComposing) handleSend();
     });
 
-    /* opening line (client-side only, not part of API history) */
-    setTimeout(async () => {
+    /* boot: restore saved conversation from the server, else play the opening line */
+    (async () => {
+      let restored = false;
+      if (backendAvailable) {
+        try {
+          const r = await fetch('api/history?limit=30');
+          if (r.ok) {
+            const j = await r.json();
+            if (Array.isArray(j.messages) && j.messages.length) {
+              for (const m of j.messages) {
+                addStored(m.role, m.content);
+                history.push({ role: m.role, content: m.content });
+              }
+              const lastDept = [...j.messages].reverse().find(m => m.role === 'assistant' && m.dept);
+              if (lastDept) applyDept(lastDept.dept);
+              chat.scrollTop = chat.scrollHeight;
+              restored = true;
+            }
+          }
+        } catch {}
+      }
+      if (restored) return;
+      await new Promise(r => setTimeout(r, 600));
       const bubble = addThinking();
       await new Promise(r => setTimeout(r, 900));
       Brain.burst();
@@ -328,7 +380,7 @@
       tw.close();
       await tw.done;
       Brain.idle();
-    }, 600);
+    })();
   }
 
   window.JokerChat = { init };
