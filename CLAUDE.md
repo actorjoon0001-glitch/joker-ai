@@ -11,5 +11,8 @@
 - 프론트엔드는 빌드 없는 순수 JS(IIFE, `js/`), 백엔드는 `api/chat.js`
   (Vercel 서버리스 호환, ESM). 자세한 구조는 README 참고.
 - 컴퍼니 메모리(`buildKnowledgeBlock`)는 매 요청 주입, 스킬(`buildSkillBlock`)은
-  발동 키워드가 걸린 요청에만 주입된다. 사용자 등록 데이터는 모두 브라우저
-  localStorage에 저장된다.
+  발동 키워드가 걸린 요청에만 주입된다.
+- 컴퍼니 메모리와 대화 기록은 Supabase에 저장된다(`api/memory.js`,
+  `api/history.js`, 스키마는 `supabase/setup.sql` — 대시보드에서 1회 실행 필요).
+  Supabase가 준비 안 됐으면 503(db_not_ready)을 반환하고 프론트는
+  localStorage로 폴백한다. 스킬은 아직 localStorage에만 저장된다.
