@@ -24,6 +24,7 @@
   }
 
   let knowledge = load();
+  const hasBackend = location.protocol !== 'file:';
 
   window.JokerKnowledge = {
     get() {
@@ -32,6 +33,18 @@
       return hasAny ? knowledge : null;
     },
   };
+
+  /* pull the shared copy from the server (Supabase) — wins over localStorage
+     so edits made on another device show up here */
+  if (hasBackend) {
+    fetch('api/memory').then(r => (r.ok ? r.json() : null)).then(j => {
+      if (j && j.data && typeof j.data === 'object' &&
+          ((j.data.company || '').trim() || Object.values(j.data.depts || {}).some(v => (v || '').trim()))) {
+        knowledge = { company: j.data.company || '', depts: j.data.depts || {} };
+        save(knowledge);
+      }
+    }).catch(() => {});
+  }
 
   /* ── panel UI ── */
   const btn = document.getElementById('settingsBtn');
@@ -90,7 +103,7 @@
     setTimeout(() => { panel.hidden = true; backdrop.hidden = true; }, 300);
   }
 
-  function doSave() {
+  async function doSave() {
     knowledge = {
       company: companyTa.value.trim().slice(0, MAX_FIELD),
       depts: Object.fromEntries(
@@ -99,13 +112,26 @@
     };
     save(knowledge);
     if (window.JokerSkills) window.JokerSkills.saveFromUI();
-    saveBtn.textContent = '저장 완료 ✓';
+
+    let synced = false;
+    if (hasBackend) {
+      try {
+        const r = await fetch('api/memory', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: knowledge }),
+        });
+        synced = r.ok;
+      } catch {}
+    }
+
+    saveBtn.textContent = synced ? '저장 완료 ✓ (모든 기기 공유)' : '저장 완료 ✓ (이 브라우저)';
     saveBtn.classList.add('saved');
     setTimeout(() => {
       saveBtn.textContent = '저장';
       saveBtn.classList.remove('saved');
       close();
-    }, 900);
+    }, 1200);
   }
 
   btn.addEventListener('click', open);
