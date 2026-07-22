@@ -56,6 +56,12 @@
     const statusEl = document.getElementById('status');
     const statusText = document.getElementById('statusText');
     const capState = document.getElementById('capState');
+    const composer = document.getElementById('composer');
+    const attachBtn = document.getElementById('attachBtn');
+    const fileInput = document.getElementById('fileInput');
+    const attachPreview = document.getElementById('attachPreview');
+    const attachThumb = document.getElementById('attachThumb');
+    const attachRemove = document.getElementById('attachRemove');
 
     let busy = false;
     let backendAvailable = location.protocol !== 'file:';
@@ -75,15 +81,66 @@
       }
     }
 
-    function addUser(text, activeSkills) {
+    /* ── image attach: paste / drop / file-pick → resized JPEG base64 ── */
+    let pendingImage = null; /* {media_type, data, url} */
+
+    function clearImage() {
+      pendingImage = null;
+      if (attachPreview) attachPreview.hidden = true;
+      if (fileInput) fileInput.value = '';
+    }
+
+    async function setImage(blob) {
+      if (!blob || !/^image\//.test(blob.type)) return;
+      try {
+        const objUrl = URL.createObjectURL(blob);
+        const img = await new Promise((res, rej) => {
+          const i = new Image();
+          i.onload = () => res(i);
+          i.onerror = rej;
+          i.src = objUrl;
+        });
+        /* shrink big screenshots so the payload stays light for the API */
+        const MAX = 1400;
+        const scale = Math.min(1, MAX / Math.max(img.naturalWidth, img.naturalHeight));
+        const w = Math.max(1, Math.round(img.naturalWidth * scale));
+        const h = Math.max(1, Math.round(img.naturalHeight * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(objUrl);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+        pendingImage = {
+          media_type: 'image/jpeg',
+          data: dataUrl.slice(dataUrl.indexOf(',') + 1),
+          url: dataUrl,
+        };
+        if (attachThumb) attachThumb.src = dataUrl;
+        if (attachPreview) attachPreview.hidden = false;
+        input.focus();
+      } catch (err) {
+        console.warn('[joker] image load failed:', err);
+      }
+    }
+
+    function addUser(text, activeSkills, imageUrl) {
       const el = document.createElement('div');
       el.className = 'msg user';
       const who = document.createElement('span');
       who.className = 'who';
       who.textContent = 'You';
+      el.appendChild(who);
+      if (imageUrl) {
+        const im = document.createElement('img');
+        im.className = 'attach';
+        im.src = imageUrl;
+        im.alt = '첨부 이미지';
+        el.appendChild(im);
+      }
       const body = document.createElement('span');
       body.textContent = text;
-      el.append(who, body);
+      el.appendChild(body);
       if (activeSkills && activeSkills.length) {
         const badge = document.createElement('span');
         badge.className = 'skill-badge';
@@ -156,7 +213,7 @@
     /* Stream the assistant reply from the backend into the typewriter. The server
        may prefix the stream with a control header "\x00dept:<key>\x00" carrying the
        department classification. Returns {full, dept}; throws with .gotText flag. */
-    async function streamFromBackend(tw, activeSkills) {
+    async function streamFromBackend(tw, activeSkills, image) {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
       let gotText = false;
@@ -179,6 +236,7 @@
             messages: history.slice(-MAX_HISTORY),
             knowledge: window.JokerKnowledge ? window.JokerKnowledge.get() : null,
             skills: activeSkills,
+            image: image ? { media_type: image.media_type, data: image.data } : undefined,
           }),
           signal: ctrl.signal,
         });
@@ -262,18 +320,23 @@
 
     async function handleSend() {
       const text = input.value.trim();
-      if (!text || busy) return;
+      const image = pendingImage;
+      if ((!text && !image) || busy) return;
       busy = true;
       sendBtn.disabled = true;
       input.value = '';
+      clearImage();
 
       /* skills fire on the latest user message only; badge shown only when the
          backend will actually apply them */
       const activeSkills =
         backendAvailable && window.JokerSkills ? window.JokerSkills.match(text) : null;
 
-      addUser(text, activeSkills);
-      history.push({ role: 'user', content: text });
+      const shownText = text || '이 화면 봐줘.';
+      /* the image itself travels only in this request; history/DB keep a marker */
+      const userContent = (image ? '[사진 첨부] ' : '') + shownText;
+      addUser(shownText, activeSkills, image && image.url);
+      history.push({ role: 'user', content: userContent });
 
       if (window.JokerVoice) window.JokerVoice.interrupt(); /* stop any ongoing TTS */
       Brain.think();
@@ -286,13 +349,13 @@
       if (backendAvailable) {
         const tw = makeTypewriter(bubble);
         try {
-          const result = await streamFromBackend(tw, activeSkills);
+          const result = await streamFromBackend(tw, activeSkills, image);
           reply = result.full;
           /* server didn't classify (e.g. model skipped the tag) → keyword fallback */
           if (!result.dept) applyDept(window.classifyDept(text + ' ' + reply));
           tw.close();
           await tw.done;
-          persistTurn(text, reply);
+          persistTurn(userContent, reply);
         } catch (err) {
           console.warn('[joker] backend failed:', err);
           tw.close();
@@ -328,7 +391,9 @@
         Brain.burst();
         setStatus('idle');
         const tw = makeTypewriter(bubble);
-        tw.push(dept
+        tw.push(image
+          ? '사진은 잘 받았습니다만, 지금은 오프라인 데모 모드라 제 눈(비전 모듈)이 꺼져 있습니다. 서버가 연결되면 캡처 화면도 바로 읽어드리겠습니다.'
+          : dept
           ? `${window.DEPTS[dept].name} 업무로 분류했습니다 — 뇌의 담당 영역이 켜진 게 보이시죠? 지금은 데모 모드라 맛보기지만, 서버가 연결되면 ${window.DEPTS[dept].name} 일은 제대로 도와드리겠습니다.`
           : pickLocalReply(text));
         tw.close();
@@ -351,6 +416,44 @@
     sendBtn.addEventListener('click', handleSend);
     input.addEventListener('keydown', e => {
       if (e.key === 'Enter' && !e.isComposing) handleSend();
+    });
+
+    /* attach button + file picker */
+    if (attachBtn && fileInput) {
+      attachBtn.addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', () => {
+        const f = fileInput.files && fileInput.files[0];
+        if (f) setImage(f);
+      });
+    }
+    if (attachRemove) attachRemove.addEventListener('click', clearImage);
+
+    /* paste a screenshot anywhere on the page */
+    document.addEventListener('paste', (e) => {
+      const items = e.clipboardData && e.clipboardData.items;
+      if (!items) return;
+      for (const it of items) {
+        if (it.type && it.type.indexOf('image/') === 0) {
+          e.preventDefault();
+          setImage(it.getAsFile());
+          return;
+        }
+      }
+    });
+
+    /* drag & drop an image file */
+    document.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      if (composer) composer.classList.add('dragging');
+    });
+    document.addEventListener('dragleave', (e) => {
+      if (!e.relatedTarget && composer) composer.classList.remove('dragging');
+    });
+    document.addEventListener('drop', (e) => {
+      e.preventDefault();
+      if (composer) composer.classList.remove('dragging');
+      const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) setImage(f);
     });
 
     /* boot: restore saved conversation from the server, else play the opening line */

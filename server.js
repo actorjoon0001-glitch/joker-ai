@@ -33,7 +33,7 @@ function readBody(req) {
     let data = '';
     req.on('data', (c) => {
       data += c;
-      if (data.length > 1e6) { reject(new Error('body_too_large')); req.destroy(); }
+      if (data.length > 8e6) { reject(new Error('body_too_large')); req.destroy(); }
     });
     req.on('end', () => resolve(data));
     req.on('error', reject);

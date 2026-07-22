@@ -6,6 +6,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import {
   MODEL_DEFAULT, OVERLOAD_LINE, sanitizeHistory, buildSystem, createDeptTagFilter,
+  validateImage, toApiMessages,
 } from './_lib/core.js';
 
 const MODEL = process.env.JOKER_MODEL || MODEL_DEFAULT;
@@ -40,7 +41,7 @@ export default async function handler(req, res) {
       thinking: { type: 'adaptive' },
       output_config: { effort: 'medium' },
       system: buildSystem(req.body),
-      messages: history,
+      messages: toApiMessages(history, validateImage(req.body && req.body.image)),
     });
 
     let emitted = 0;
