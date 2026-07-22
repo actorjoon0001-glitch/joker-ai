@@ -1,7 +1,7 @@
 # Netlify 배포 설정 — 정적 사이트(루트) + netlify/functions 서버리스 백엔드
 [build]
   publish = "."
-  command = "mkdir -p netlify/edge-functions/lib && cp api/_lib/core.js netlify/edge-functions/lib/core.js"
+  command = ""
 
 [functions]
   node_bundler = "esbuild"
