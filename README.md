@@ -83,6 +83,14 @@ ANTHROPIC_API_KEY=sk-ant-... npm start
 
 API 키는 서버에서만 사용되며 프론트엔드에 노출되지 않습니다.
 
+### Netlify 배포 (권장)
+
+1. Netlify → **Add new site → Import an existing project** → GitHub에서 이
+   저장소 선택 (브랜치 `main`). 빌드 설정은 `netlify.toml`이 자동 적용됩니다.
+2. **Site configuration → Environment variables**에 `ANTHROPIC_API_KEY` 추가
+3. Deploy — `netlify/functions/`의 함수들이 `/api/chat`, `/api/memory`,
+   `/api/history`로 배포됩니다 (기존 Vercel용 핸들러를 어댑터로 재사용).
+
 ### Vercel 배포
 
 저장소를 Vercel에 연결하고 환경 변수 `ANTHROPIC_API_KEY`만 설정하면
