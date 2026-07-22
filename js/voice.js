@@ -1,6 +1,8 @@
 /* Voice I/O — mic button (Web Speech API speech-to-text, ko-KR) that fills the
-   input and auto-sends, plus a header toggle that reads Joker's replies aloud
-   (speechSynthesis). No server or API cost; everything runs in the browser.
+   input and auto-sends, plus a header toggle that reads Joker's replies aloud.
+   Speech output prefers the server's /api/tts (ElevenLabs — natural voice,
+   active once ELEVENLABS_API_KEY is deployed) and falls back to the browser's
+   built-in speechSynthesis when the server answers 501/404.
    Exposes window.JokerVoice.{speak, interrupt}. */
 (() => {
   'use strict';
@@ -16,18 +18,25 @@
   let ttsOn = false;
   try { ttsOn = localStorage.getItem(TTS_KEY) === '1'; } catch {}
 
+  let serverTts = location.protocol === 'file:' ? false : null; /* null = not probed yet */
+  let audioEl = null;
+
+  function stopAudio() {
+    if (audioEl) {
+      try { audioEl.pause(); } catch {}
+      audioEl = null;
+    }
+  }
+
   function pickKoreanVoice() {
     if (!synth) return null;
     const voices = synth.getVoices();
     return voices.find(v => /ko[-_]KR/i.test(v.lang)) || voices.find(v => /^ko/i.test(v.lang)) || null;
   }
 
-  function speak(text) {
-    if (!synth || !ttsOn || !text) return;
+  function speakLocal(clean) {
+    if (!synth) return;
     synth.cancel();
-    /* strip the blinking-cursor artifacts / trim long pauses */
-    const clean = text.replace(/\s+/g, ' ').trim();
-    if (!clean) return;
     const u = new SpeechSynthesisUtterance(clean);
     u.lang = 'ko-KR';
     const voice = pickKoreanVoice();
@@ -37,7 +46,39 @@
     synth.speak(u);
   }
 
+  async function speak(text) {
+    if (!ttsOn || !text) return;
+    /* strip the blinking-cursor artifacts / trim long pauses */
+    const clean = text.replace(/\s+/g, ' ').trim();
+    if (!clean) return;
+    stopAudio();
+    if (synth) synth.cancel();
+
+    if (serverTts !== false) {
+      try {
+        const res = await fetch('api/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: clean }),
+        });
+        if (res.ok) {
+          serverTts = true;
+          const url = URL.createObjectURL(await res.blob());
+          const el = new Audio(url);
+          audioEl = el;
+          el.onended = () => { URL.revokeObjectURL(url); if (audioEl === el) audioEl = null; };
+          await el.play().catch(() => {});
+          return;
+        }
+        /* this deploy has no server TTS → remember and stop asking */
+        if (res.status === 501 || res.status === 404 || res.status === 405) serverTts = false;
+      } catch { /* network hiccup — fall back just for this reply */ }
+    }
+    speakLocal(clean);
+  }
+
   function interrupt() {
+    stopAudio();
     if (synth) synth.cancel();
     stopListening();
   }
@@ -49,16 +90,20 @@
   }
 
   if (ttsBtn) {
-    if (!synth) {
-      ttsBtn.hidden = true;
+    if (!synth && serverTts === false) {
+      ttsBtn.hidden = true; /* file:// with no browser voice — nothing can speak */
     } else {
       renderTts();
       ttsBtn.addEventListener('click', () => {
         ttsOn = !ttsOn;
         try { localStorage.setItem(TTS_KEY, ttsOn ? '1' : '0'); } catch {}
         renderTts();
-        if (!ttsOn) synth.cancel();
-        else speak('음성 답변을 켰습니다. 이제 답변을 읽어드릴게요.');
+        if (!ttsOn) {
+          stopAudio();
+          if (synth) synth.cancel();
+        } else {
+          speak('음성 답변을 켰습니다. 이제 답변을 읽어드릴게요.');
+        }
       });
     }
   }

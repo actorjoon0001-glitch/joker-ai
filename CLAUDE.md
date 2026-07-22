@@ -16,3 +16,6 @@
   `api/history.js`, 스키마는 `supabase/setup.sql` — 대시보드에서 1회 실행 필요).
   Supabase가 준비 안 됐으면 503(db_not_ready)을 반환하고 프론트는
   localStorage로 폴백한다. 스킬은 아직 localStorage에만 저장된다.
+- 음성 답변은 `/api/tts`(api/tts.js, 엣지 사본 netlify/edge-functions/tts.js)가
+  일레븐랩스를 프록시한다. ELEVENLABS_API_KEY 미설정 시 501을 반환하고
+  프론트(js/voice.js)는 브라우저 내장 speechSynthesis로 폴백한다.

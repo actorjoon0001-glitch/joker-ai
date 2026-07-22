@@ -8,11 +8,13 @@ import { fileURLToPath } from 'node:url';
 import chatHandler from './api/chat.js';
 import memoryHandler from './api/memory.js';
 import historyHandler from './api/history.js';
+import ttsHandler from './api/tts.js';
 
 const API_ROUTES = {
   '/api/chat': chatHandler,
   '/api/memory': memoryHandler,
   '/api/history': historyHandler,
+  '/api/tts': ttsHandler,
 };
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
