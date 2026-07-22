@@ -49,6 +49,42 @@
     '생각이 너무 길어져서 제한 시간을 넘겨버렸습니다. 너무 심오한 질문은 제 뇌도 감당이 안 되나 봅니다. 조금 잘게 나눠서 다시 물어봐 주시겠어요?';
   const OPENING = '시스템 온라인. 조커, 대기 완료입니다.\n무엇이든 물어보세요 — 유능한 답변 7할, 능청 3할로 드리겠습니다.';
 
+  const COPY_ICON =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+
+  /* copy-to-clipboard button appended to a finished Joker bubble */
+  function attachCopyBtn(el, text) {
+    if (!text || !text.trim()) return;
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.setAttribute('aria-label', '답변 복사');
+    btn.innerHTML = COPY_ICON + '<span>복사</span>';
+    btn.addEventListener('click', async () => {
+      let ok = true;
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        /* non-secure context / permission denied → hidden-textarea fallback */
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.cssText = 'position:fixed;opacity:0';
+          document.body.appendChild(ta);
+          ta.select();
+          ok = document.execCommand('copy');
+          ta.remove();
+        } catch { ok = false; }
+      }
+      btn.classList.add('copied');
+      btn.innerHTML = COPY_ICON + '<span>' + (ok ? '복사됨 ✓' : '복사 실패') + '</span>';
+      setTimeout(() => {
+        btn.classList.remove('copied');
+        btn.innerHTML = COPY_ICON + '<span>복사</span>';
+      }, 1600);
+    });
+    el.appendChild(btn);
+  }
+
   function init(Brain) {
     const chat = document.getElementById('chat');
     const input = document.getElementById('input');
@@ -190,6 +226,7 @@
           setTimeout(step, delay);
         } else if (closed) {
           cursor.remove();
+          attachCopyBtn(el, full);
           resolveDone(full);
         } else {
           setTimeout(step, 40);
@@ -300,6 +337,7 @@
       const body = document.createElement('span');
       body.textContent = content;
       el.append(who, body);
+      if (role === 'assistant') attachCopyBtn(el, content);
       chat.appendChild(el);
     }
 
