@@ -153,7 +153,11 @@ export default async function handler(request) {
     if (!history) return json(400, { error: 'invalid_messages' });
 
     const apiKey = getEnv('ANTHROPIC_API_KEY');
-    if (!apiKey) return json(500, { error: 'server_not_configured' });
+    if (!apiKey) {
+      return json(500, debug
+        ? { error: 'server_not_configured', detail: 'env_missing_after_clean' }
+        : { error: 'server_not_configured' });
+    }
 
     const knowledgeBlock = buildKnowledgeBlock(body.knowledge);
     const skillBlock = buildSkillBlock(body.skills);
@@ -180,7 +184,13 @@ export default async function handler(request) {
       const status = upstream.status;
       const detail = await upstream.text().catch(() => '');
       console.error('[joker edge] upstream', status, detail);
-      if (status === 401 || status === 403) return json(500, { error: 'server_not_configured' });
+      /* keyInfo: safe fingerprint (prefix + length only) to diagnose mangled env values */
+      const keyInfo = apiKey.slice(0, 7) + '…len' + apiKey.length;
+      if (status === 401 || status === 403) {
+        return json(500, debug
+          ? { error: 'server_not_configured', detail: 'upstream_' + status + ' key=' + keyInfo }
+          : { error: 'server_not_configured' });
+      }
       if (status === 429) return json(429, { error: 'rate_limited' });
       if (status === 400) return json(500, debug ? { error: 'server_not_configured', detail } : { error: 'server_not_configured' });
       return json(502, { error: 'upstream_error' });
