@@ -676,6 +676,28 @@
   }
   .skill-add:hover { border-color: rgba(178, 107, 255, 0.8); background: rgba(178, 107, 255, 0.08); }
 
+  /* copy-reply button at the bottom of a Joker bubble */
+  .msg .copy-btn {
+    display: flex;
+    align-items: center;
+    width: max-content;
+    gap: 5px;
+    margin-top: 8px;
+    padding: 4px 9px;
+    background: none;
+    border: 1px solid rgba(52, 224, 255, 0.22);
+    border-radius: 8px;
+    color: var(--text-dim);
+    font-family: var(--font-tech);
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .msg .copy-btn:hover { color: var(--cyan); border-color: rgba(52, 224, 255, 0.5); }
+  .msg .copy-btn.copied { color: var(--green); border-color: rgba(88, 255, 155, 0.5); }
+  .msg .copy-btn svg { width: 12px; height: 12px; }
+
   .msg .skill-badge {
     display: block;
     margin-top: 5px;
