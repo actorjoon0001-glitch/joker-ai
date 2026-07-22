@@ -4,7 +4,7 @@
    Raw fetch + SSE parsing (no SDK — this runs on Deno). */
 import {
   MODEL_DEFAULT, OVERLOAD_LINE, sanitizeHistory, buildSystem, createDeptTagFilter,
-} from '../../api/_lib/core.js';
+} from './lib/core.js';
 
 const env = (k) =>
   (typeof Netlify !== 'undefined' && Netlify.env ? Netlify.env.get(k) : undefined) ??
