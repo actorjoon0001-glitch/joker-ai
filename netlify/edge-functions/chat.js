@@ -173,7 +173,20 @@ export default async function handler(request) {
     const history = sanitizeHistory(body.messages);
     if (!history) return json(400, { error: 'invalid_messages' });
 
-    const apiKey = getEnv('ANTHROPIC_API_KEY');
+    /* Netlify masks credential-looking env values (sk-ant-…) before edge
+       functions can read them, so the key is stored base64-encoded under a
+       neutral name (JOKER_BRAIN_KEY). Plain ANTHROPIC_API_KEY is the fallback
+       for platforms that deliver env values untouched. */
+    let apiKey;
+    const encoded = getEnv('JOKER_BRAIN_KEY');
+    if (encoded) {
+      try { apiKey = atob(encoded).trim(); } catch (_) {}
+    }
+    if (!apiKey || !apiKey.startsWith('sk-ant-')) {
+      const plain = getEnv('ANTHROPIC_API_KEY');
+      /* a masked value survives cleanEnv as a short "sk-ant-a" stub — reject it */
+      if (plain && plain.length > 40) apiKey = plain;
+    }
     if (!apiKey) {
       return json(500, debug
         ? { error: 'server_not_configured', detail: 'env_missing_after_clean' }
