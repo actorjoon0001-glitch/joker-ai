@@ -141,6 +141,27 @@ function getEnv(k) {
 const json = (status, obj) =>
   new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json' } });
 
+/* debug-only: how each env source sees the key, without leaking it —
+   raw length + char codes of the first 10 chars (the "sk-ant-api" prefix
+   region, which is public knowledge for Anthropic keys) */
+function envDiagnostics(k) {
+  const probe = (fn) => {
+    try {
+      const v = fn();
+      if (v === undefined || v === null) return null;
+      const s = String(v);
+      return { len: s.length, head: [...s.slice(0, 10)].map((c) => c.codePointAt(0)) };
+    } catch (err) {
+      return { err: String(err && err.message || err) };
+    }
+  };
+  return {
+    netlify: probe(() => (typeof Netlify !== 'undefined' && Netlify.env ? Netlify.env.get(k) : undefined)),
+    deno: probe(() => (typeof Deno !== 'undefined' && Deno.env ? Deno.env.get(k) : undefined)),
+    process: probe(() => (typeof process !== 'undefined' && process.env ? process.env[k] : undefined)),
+  };
+}
+
 export default async function handler(request) {
   let debug = false;
   try {
@@ -188,7 +209,7 @@ export default async function handler(request) {
       const keyInfo = apiKey.slice(0, 7) + '…len' + apiKey.length;
       if (status === 401 || status === 403) {
         return json(500, debug
-          ? { error: 'server_not_configured', detail: 'upstream_' + status + ' key=' + keyInfo }
+          ? { error: 'server_not_configured', detail: 'upstream_' + status + ' key=' + keyInfo, env: envDiagnostics('ANTHROPIC_API_KEY') }
           : { error: 'server_not_configured' });
       }
       if (status === 429) return json(429, { error: 'rate_limited' });
