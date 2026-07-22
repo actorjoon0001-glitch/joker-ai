@@ -275,6 +275,7 @@
       addUser(text, activeSkills);
       history.push({ role: 'user', content: text });
 
+      if (window.JokerVoice) window.JokerVoice.interrupt(); /* stop any ongoing TTS */
       Brain.think();
       setStatus('thinking');
       const bubble = addThinking();
@@ -334,7 +335,10 @@
         reply = await tw.done;
       }
 
-      if (reply) history.push({ role: 'assistant', content: reply });
+      if (reply) {
+        history.push({ role: 'assistant', content: reply });
+        if (window.JokerVoice) window.JokerVoice.speak(reply);
+      }
       else history.pop(); /* failed turn — drop the user msg so history stays valid */
 
       Brain.idle();
