@@ -109,21 +109,31 @@ function createDeptTagFilter(writeText, writeHeader) {
   };
 }
 
+/* Env values pasted into the Netlify UI can carry invisible unicode (zero-width
+   spaces, NBSP…) which makes Deno's Request constructor reject the header as a
+   non-ByteString. Our env values (API key, model id, base URL) are all printable
+   ASCII, so strip anything else. */
+function cleanEnv(v) {
+  if (v === undefined || v === null) return undefined;
+  const s = String(v).replace(/[^\x20-\x7E]/g, '').trim();
+  return s || undefined;
+}
+
 function getEnv(k) {
   try {
     if (typeof Netlify !== 'undefined' && Netlify.env && typeof Netlify.env.get === 'function') {
-      const v = Netlify.env.get(k);
-      if (v !== undefined && v !== null) return v;
+      const v = cleanEnv(Netlify.env.get(k));
+      if (v !== undefined) return v;
     }
   } catch (_) {}
   try {
     if (typeof Deno !== 'undefined' && Deno.env && typeof Deno.env.get === 'function') {
-      const v = Deno.env.get(k);
-      if (v !== undefined && v !== null) return v;
+      const v = cleanEnv(Deno.env.get(k));
+      if (v !== undefined) return v;
     }
   } catch (_) {}
   try {
-    if (typeof process !== 'undefined' && process.env) return process.env[k];
+    if (typeof process !== 'undefined' && process.env) return cleanEnv(process.env[k]);
   } catch (_) {}
   return undefined;
 }
