@@ -62,6 +62,28 @@ async function saveNotion(action) {
 
 const CTRL = String.fromCharCode(0); /* NUL frame for control headers */
 
+/* per-turn token/search usage → joker_usage row (best-effort) */
+async function saveUsage(usage) {
+  if (!usage) return;
+  try {
+    const r = await sb('joker_usage', {
+      method: 'POST',
+      body: JSON.stringify({
+        kind: 'turn',
+        model: MODEL,
+        input_tokens: usage.input_tokens || 0,
+        output_tokens: usage.output_tokens || 0,
+        cache_write_tokens: usage.cache_creation_input_tokens || 0,
+        cache_read_tokens: usage.cache_read_input_tokens || 0,
+        searches: (usage.server_tool_use && usage.server_tool_use.web_search_requests) || 0,
+      }),
+    });
+    if (!r.ok) console.error('[joker api] usage save failed', r.status);
+  } catch (err) {
+    console.error('[joker api] usage save', err);
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'method_not_allowed' });
@@ -92,7 +114,7 @@ export default async function handler(req, res) {
       thinking: { type: 'adaptive' },
       output_config: { effort: 'medium' },
       system: buildSystem(req.body),
-      tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }],
+      tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 }],
       messages: toApiMessages(history, validateImage(req.body && req.body.image)),
     });
 
@@ -119,6 +141,7 @@ export default async function handler(req, res) {
 
     const final = await stream.finalMessage();
     filter.flush();
+    pendingWrites.push(saveUsage(final.usage));
     await Promise.all(pendingWrites);
 
     if (final.stop_reason === 'refusal' && emitted === 0) {
@@ -135,6 +158,8 @@ export default async function handler(req, res) {
       res.status(429).json({ error: 'rate_limited' });
     } else if (err instanceof Anthropic.AuthenticationError) {
       res.status(500).json({ error: 'server_not_configured' });
+    } else if (err instanceof Anthropic.APIError && err.status === 400 && /credit balance/i.test(String(err.message))) {
+      res.status(402).json({ error: 'no_credits' });
     } else if (err instanceof Anthropic.APIError) {
       res.status(502).json({ error: 'upstream_error' });
     } else {

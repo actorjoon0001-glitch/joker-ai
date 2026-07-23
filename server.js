@@ -10,6 +10,7 @@ import memoryHandler from './api/memory.js';
 import historyHandler from './api/history.js';
 import ttsHandler from './api/tts.js';
 import eventsHandler from './api/events.js';
+import usageHandler from './api/usage.js';
 
 const API_ROUTES = {
   '/api/chat': chatHandler,
@@ -17,6 +18,7 @@ const API_ROUTES = {
   '/api/history': historyHandler,
   '/api/tts': ttsHandler,
   '/api/events': eventsHandler,
+  '/api/usage': usageHandler,
 };
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));

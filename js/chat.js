@@ -45,6 +45,8 @@
     '서버는 멀쩡히 살아 있는데, 제 두뇌를 여는 열쇠가 아직 등록되지 않았습니다. 관리자님, 배포 환경 변수에 ANTHROPIC_API_KEY를 넣어주시면 그 순간부터 진짜 실력을 보여드리겠습니다.';
   const RATE_LIMIT_LINE =
     '질문이 폭주해서 제 뇌 사용량 한도에 걸렸습니다. 인기가 많은 것도 죄라면 죄네요. 잠깐 숨 돌리고 다시 물어봐 주세요.';
+  const NO_CREDITS_LINE =
+    '이런… 제 연료(API 크레딧)가 다 떨어졌습니다. 앤트로픽 콘솔(console.anthropic.com)의 Billing에서 크레딧을 충전해주시면 바로 다시 달리겠습니다. 자동 충전(Auto reload)을 켜두시면 이런 일이 없어요.';
   const TIMEOUT_LINE =
     '생각이 너무 길어져서 제한 시간을 넘겨버렸습니다. 너무 심오한 질문은 제 뇌도 감당이 안 되나 봅니다. 조금 잘게 나눠서 다시 물어봐 주시겠어요?';
   const OPENING = '시스템 온라인. 조커, 대기 완료입니다.\n무엇이든 물어보세요 — 유능한 답변 7할, 능청 3할로 드리겠습니다.';
@@ -517,6 +519,8 @@
           tw.close();
           await tw.done;
           persistTurn(userContent, reply);
+          /* server just recorded this turn's token usage — refresh the meter */
+          if (window.JokerUsage) setTimeout(() => window.JokerUsage.refresh(), 2500);
         } catch (err) {
           console.warn('[joker] backend failed:', err);
           tw.close();
@@ -533,6 +537,7 @@
             const tw2 = makeTypewriter(bubble);
             let line;
             if (!backendAvailable) line = pickLocalReply(text);
+            else if (err.status === 402 || err.code === 'no_credits') line = NO_CREDITS_LINE;
             else if (err.code === 'server_not_configured') line = NO_KEY_LINE;
             else if (err.status === 429) line = RATE_LIMIT_LINE;
             else if (err.name === 'AbortError') line = TIMEOUT_LINE;
