@@ -387,6 +387,7 @@
   .gear.active { color: var(--green); border-color: rgba(88, 255, 155, 0.5); }
 
   /* image attach: preview chip above the input + image inside a bubble */
+  .composer .attach-preview[hidden] { display: none; }
   .composer .attach-preview {
     display: flex;
     align-items: center;
@@ -690,6 +691,52 @@
   }
   .skill-add:hover { border-color: rgba(178, 107, 255, 0.8); background: rgba(178, 107, 255, 0.08); }
 
+  /* 일정/리마인더 confirmation card */
+  .action-chip {
+    align-self: flex-start;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    max-width: 78%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(88, 255, 155, 0.35);
+    background: rgba(88, 255, 155, 0.07);
+    animation: msgIn 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    backdrop-filter: blur(6px);
+  }
+  .action-chip .info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .action-chip .kind {
+    font-family: var(--font-tech);
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--green);
+  }
+  .action-chip b {
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--text);
+    word-break: break-word;
+  }
+  .action-chip .when { color: var(--text-dim); font-size: 12.5px; }
+  .action-chip a {
+    flex-shrink: 0;
+    color: var(--cyan);
+    border: 1px solid rgba(52, 224, 255, 0.3);
+    border-radius: 8px;
+    padding: 7px 11px;
+    font-size: 12px;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .action-chip a:hover { border-color: rgba(52, 224, 255, 0.6); background: rgba(52, 224, 255, 0.08); }
+
   /* copy-reply button at the bottom of a Joker bubble */
   .msg .copy-btn {
     display: flex;
@@ -839,6 +886,7 @@
 <script src="js/brain2d.js"></script>
 <script src="js/brain3d.js"></script>
 <script src="js/chat.js"></script>
+<script src="js/reminders.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

@@ -9,12 +9,14 @@ import chatHandler from './api/chat.js';
 import memoryHandler from './api/memory.js';
 import historyHandler from './api/history.js';
 import ttsHandler from './api/tts.js';
+import eventsHandler from './api/events.js';
 
 const API_ROUTES = {
   '/api/chat': chatHandler,
   '/api/memory': memoryHandler,
   '/api/history': historyHandler,
   '/api/tts': ttsHandler,
+  '/api/events': eventsHandler,
 };
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));

@@ -19,9 +19,24 @@ create table if not exists joker_messages (
   created_at timestamptz not null default now()
 );
 
--- RLS: publishable(anon) 키로 이 두 테이블만 읽기/쓰기 허용
+-- 일정·리마인더 (조커가 대화 중 등록)
+create table if not exists joker_events (
+  id bigint generated always as identity primary key,
+  kind text not null default 'reminder' check (kind in ('reminder', 'event')),
+  title text not null,
+  due_at timestamptz not null,
+  notified boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+-- RLS: publishable(anon) 키로 이 테이블들만 읽기/쓰기 허용
 alter table joker_memory enable row level security;
 alter table joker_messages enable row level security;
+alter table joker_events enable row level security;
+
+drop policy if exists "joker anon events" on joker_events;
+create policy "joker anon events" on joker_events
+  for all to anon using (true) with check (true);
 
 drop policy if exists "joker anon memory" on joker_memory;
 create policy "joker anon memory" on joker_memory

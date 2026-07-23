@@ -275,21 +275,55 @@
     }
 
     /* Stream the assistant reply from the backend into the typewriter. The server
-       may prefix the stream with a control header "\x00dept:<key>\x00" carrying the
-       department classification. Returns {full, dept}; throws with .gotText flag. */
+       embeds NUL-framed control headers in the stream — "\u0000dept:<key>\u0000" for the
+       department, "\u0000action:<json>\u0000" for registered events/reminders.
+       Returns {full, dept}; throws with .gotText flag. */
     async function streamFromBackend(tw, activeSkills, image) {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
       let gotText = false;
       let dept = null;
-      let headBuf = '';
-      let headerDone = false;
+      let inCtrl = false;
+      let ctrlBuf = '';
+      let hadAction = false;
 
       const emit = (text) => {
         if (!text) return '';
         if (!gotText) { gotText = true; Brain.burst(); setStatus('idle'); }
         tw.push(text);
         return text;
+      };
+
+      const handleCtrl = (c) => {
+        const dm = c.match(/^dept:([a-z]+)$/);
+        if (dm) { dept = dm[1]; applyDept(dept); return; }
+        if (c.slice(0, 7) === 'action:') {
+          try {
+            const a = JSON.parse(c.slice(7));
+            hadAction = true;
+            addActionChip(a);
+            if (window.JokerEvents) {
+              window.JokerEvents.ensurePermission();
+              setTimeout(() => window.JokerEvents.refresh(), 1200);
+            }
+          } catch {}
+        }
+      };
+
+      const scan = (text) => {
+        let out = '';
+        for (let i = 0; i < text.length; i++) {
+          const ch = text[i];
+          if (inCtrl) {
+            if (ch === '\u0000') { handleCtrl(ctrlBuf); ctrlBuf = ''; inCtrl = false; }
+            else ctrlBuf += ch;
+          } else if (ch === '\u0000') {
+            inCtrl = true;
+          } else {
+            out += ch;
+          }
+        }
+        return out;
       };
 
       try {
@@ -300,6 +334,7 @@
             messages: history.slice(-MAX_HISTORY),
             knowledge: window.JokerKnowledge ? window.JokerKnowledge.get() : null,
             skills: activeSkills,
+            events: window.JokerEvents ? window.JokerEvents.list() : undefined,
             image: image ? { media_type: image.media_type, data: image.data } : undefined,
           }),
           signal: ctrl.signal,
@@ -316,28 +351,12 @@
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          let text = decoder.decode(value, { stream: true });
+          const text = decoder.decode(value, { stream: true });
           if (!text) continue;
-          if (!headerDone) {
-            headBuf += text;
-            if (headBuf[0] === '\u0000') {
-              const end = headBuf.indexOf('\u0000', 1);
-              if (end === -1) {
-                if (headBuf.length < 40) continue; /* wait for the rest of the header */
-              } else {
-                const m = headBuf.slice(1, end).match(/^dept:([a-z]+)$/);
-                if (m) dept = m[1];
-                headBuf = headBuf.slice(end + 1);
-              }
-            }
-            headerDone = true;
-            text = headBuf;
-            headBuf = '';
-            if (dept) applyDept(dept);
-          }
-          full += emit(text);
+          full += emit(scan(text));
         }
-        if (!headerDone && headBuf) full += emit(headBuf);
+        /* reply that was only an action tag → give the bubble some text */
+        if (!full.trim() && hadAction) full += emit('네, 등록해뒀습니다.');
         if (!full.trim()) throw new Error('empty_response');
         return { full, dept };
       } catch (err) {
@@ -366,6 +385,67 @@
       el.append(who, body);
       if (role === 'assistant') attachCopyBtn(el, content);
       chat.appendChild(el);
+    }
+
+    /* joker-initiated message (reminder due, etc.) — bubble + voice */
+    function notify(text) {
+      addStored('assistant', text);
+      chat.scrollTop = chat.scrollHeight;
+      if (window.JokerVoice) window.JokerVoice.speak(text);
+    }
+
+    /* ── 일정/리마인더 confirmation card ── */
+    const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+
+    function formatWhen(date, time) {
+      const p = date.split('-').map(Number);
+      if (p.length !== 3 || p.some(isNaN)) return date + ' ' + time;
+      const wd = WEEKDAYS[new Date(Date.UTC(p[0], p[1] - 1, p[2])).getUTCDay()];
+      return `${p[1]}월 ${p[2]}일 (${wd}) ${time}`;
+    }
+
+    function gcalUrl(a) {
+      const [y, mo, da] = a.date.split('-').map(Number);
+      const [hh, mm] = a.time.split(':').map(Number);
+      const startU = Date.UTC(y, mo - 1, da, hh, mm);
+      const two = (n) => String(n).padStart(2, '0');
+      const f = (t) => {
+        const d = new Date(t);
+        return d.getUTCFullYear() + two(d.getUTCMonth() + 1) + two(d.getUTCDate()) +
+          'T' + two(d.getUTCHours()) + two(d.getUTCMinutes()) + '00';
+      };
+      return 'https://calendar.google.com/calendar/render?action=TEMPLATE' +
+        '&text=' + encodeURIComponent(a.title) +
+        '&dates=' + f(startU) + '/' + f(startU + 3600000) +
+        '&ctz=Asia/Seoul&details=' + encodeURIComponent('조커가 등록한 일정');
+    }
+
+    function addActionChip(a) {
+      if (!a || !a.title || !a.date || !a.time) return;
+      const el = document.createElement('div');
+      el.className = 'action-chip';
+      const info = document.createElement('div');
+      info.className = 'info';
+      const kind = document.createElement('span');
+      kind.className = 'kind';
+      kind.textContent = a.kind === 'event' ? '📅 일정 등록됨' : '⏰ 리마인더 등록됨';
+      const title = document.createElement('b');
+      title.textContent = a.title;
+      const when = document.createElement('span');
+      when.className = 'when';
+      when.textContent = formatWhen(a.date, a.time);
+      info.append(kind, title, when);
+      el.appendChild(info);
+      if (a.kind === 'event') {
+        const link = document.createElement('a');
+        link.href = gcalUrl(a);
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.textContent = '구글 캘린더에 추가';
+        el.appendChild(link);
+      }
+      chat.appendChild(el);
+      scrollDown();
     }
 
     /* persist a finished turn to the server (fire-and-forget) */
@@ -482,6 +562,8 @@
     input.addEventListener('keydown', e => {
       if (e.key === 'Enter' && !e.isComposing) handleSend();
     });
+
+    window.JokerChat.notify = notify; /* used by js/reminders.js */
 
     /* attach button + file picker */
     if (attachBtn && fileInput) {
