@@ -419,7 +419,27 @@
       info.append(kind, title);
       el.appendChild(info);
 
-      if (a.kind === 'notion') {
+      if (a.kind === 'pdf') {
+        kind.textContent = '📄 PDF 문서 준비됨';
+        const btn = document.createElement('a');
+        btn.href = '#';
+        btn.textContent = '다운로드';
+        btn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          if (btn.dataset.busy) return;
+          btn.dataset.busy = '1';
+          btn.textContent = '생성 중…';
+          try {
+            await window.JokerPdf.download(a.title, a.content);
+            btn.textContent = '다운로드 ✓';
+          } catch (err) {
+            console.warn('[joker] pdf failed:', err);
+            btn.textContent = '실패 — 다시 시도';
+          }
+          setTimeout(() => { btn.textContent = '다운로드'; delete btn.dataset.busy; }, 2000);
+        });
+        el.appendChild(btn);
+      } else if (a.kind === 'notion') {
         if (a.status === 'saved') {
           kind.textContent = '📝 노션에 저장됨';
           if (a.url) {

@@ -27,3 +27,9 @@
 - js/reminders.js가 /api/events를 폴링해 기한 도래 시 말풍선·음성·브라우저
   알림을 울리고, js/calendar.js가 사이트 내 월별 캘린더 패널(헤더 📅 버튼)을
   그린다. 웹 검색은 Anthropic 서버측 web_search 도구로 켜져 있다.
+- 사용량 미터: 두 챗 백엔드가 턴별 토큰·검색 수를 joker_usage에 기록하고
+  /api/usage(api/usage.js)가 opus-4-8 단가로 비용을 추정, js/usage.js가 헤더
+  잔액 칩(⚡)을 그린다. 크레딧 소진은 402 no_credits로 매핑된다.
+- PDF: 모델이 [[PDF:제목|내용]] 태그를 붙이면 클라이언트(js/pdf.js)가
+  vendor/jspdf + vendor/nanum-font.js(한글 폰트, 지연 로딩)로 .pdf를 만들어
+  다운로드 카드를 띄운다. 서버 작업 없음.
