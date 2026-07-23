@@ -415,9 +415,13 @@
   }
   .composer .attach-preview .attach-label {
     flex: 1;
-    font-family: var(--font-tech);
-    font-size: 11px;
-    letter-spacing: 0.18em;
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    letter-spacing: 0;
+    color: var(--text);
+  }
+  .composer .attach-preview .attach-label b {
+    font-weight: 500;
     color: var(--green);
   }
   .composer .attach-preview button {
@@ -769,8 +773,8 @@
 
   <div class="composer" id="composer">
     <div class="attach-preview" id="attachPreview" hidden>
-      <img id="attachThumb" alt="첨부 이미지 미리보기" />
-      <span class="attach-label">이미지 첨부됨 — 전송하면 조커가 봅니다</span>
+      <img id="attachThumb" alt="" />
+      <span class="attach-label"><b>사진 1장 준비됨</b> · 보내면 조커가 바로 확인해요</span>
       <button id="attachRemove" aria-label="첨부 취소">×</button>
     </div>
     <div class="box">
