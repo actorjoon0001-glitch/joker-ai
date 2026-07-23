@@ -19,3 +19,11 @@
 - 음성 답변은 `/api/tts`(api/tts.js, 엣지 사본 netlify/edge-functions/tts.js)가
   일레븐랩스를 프록시한다. ELEVENLABS_API_KEY 미설정 시 501을 반환하고
   프론트(js/voice.js)는 브라우저 내장 speechSynthesis로 폴백한다.
+- 조커의 액션 태그: 모델이 답변에 `[[리마인더/일정:YYYY-MM-DD HH:MM|제목]]` 또는
+  `[[노션:제목|내용]]`을 붙이면 스트림 필터(core.js·엣지 사본)가 잘라내
+  NUL 프레임 `action:` 헤더로 클라이언트에 전달한다. 일정/리마인더는 서버가
+  Supabase joker_events에 저장하고, 노션은 NOTION_API_KEY·NOTION_PARENT_PAGE_ID
+  환경변수가 있을 때 노션 페이지를 생성한다(없으면 not_configured 카드).
+- js/reminders.js가 /api/events를 폴링해 기한 도래 시 말풍선·음성·브라우저
+  알림을 울리고, js/calendar.js가 사이트 내 월별 캘린더 패널(헤더 📅 버튼)을
+  그린다. 웹 검색은 Anthropic 서버측 web_search 도구로 켜져 있다.

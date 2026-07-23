@@ -404,46 +404,62 @@
       return `${p[1]}월 ${p[2]}일 (${wd}) ${time}`;
     }
 
-    function gcalUrl(a) {
-      const [y, mo, da] = a.date.split('-').map(Number);
-      const [hh, mm] = a.time.split(':').map(Number);
-      const startU = Date.UTC(y, mo - 1, da, hh, mm);
-      const two = (n) => String(n).padStart(2, '0');
-      const f = (t) => {
-        const d = new Date(t);
-        return d.getUTCFullYear() + two(d.getUTCMonth() + 1) + two(d.getUTCDate()) +
-          'T' + two(d.getUTCHours()) + two(d.getUTCMinutes()) + '00';
-      };
-      return 'https://calendar.google.com/calendar/render?action=TEMPLATE' +
-        '&text=' + encodeURIComponent(a.title) +
-        '&dates=' + f(startU) + '/' + f(startU + 3600000) +
-        '&ctz=Asia/Seoul&details=' + encodeURIComponent('조커가 등록한 일정');
-    }
-
     function addActionChip(a) {
-      if (!a || !a.title || !a.date || !a.time) return;
+      if (!a || !a.title) return;
       const el = document.createElement('div');
       el.className = 'action-chip';
       const info = document.createElement('div');
       info.className = 'info';
       const kind = document.createElement('span');
       kind.className = 'kind';
-      kind.textContent = a.kind === 'event' ? '📅 일정 등록됨' : '⏰ 리마인더 등록됨';
       const title = document.createElement('b');
       title.textContent = a.title;
-      const when = document.createElement('span');
-      when.className = 'when';
-      when.textContent = formatWhen(a.date, a.time);
-      info.append(kind, title, when);
+      info.append(kind, title);
       el.appendChild(info);
-      if (a.kind === 'event') {
-        const link = document.createElement('a');
-        link.href = gcalUrl(a);
-        link.target = '_blank';
-        link.rel = 'noopener';
-        link.textContent = '구글 캘린더에 추가';
-        el.appendChild(link);
+
+      if (a.kind === 'notion') {
+        if (a.status === 'saved') {
+          kind.textContent = '📝 노션에 저장됨';
+          if (a.url) {
+            const link = document.createElement('a');
+            link.href = a.url;
+            link.target = '_blank';
+            link.rel = 'noopener';
+            link.textContent = '노션에서 열기';
+            el.appendChild(link);
+          }
+        } else if (a.status === 'not_configured') {
+          el.classList.add('warn');
+          kind.textContent = '📝 노션 연동 대기';
+          const note = document.createElement('span');
+          note.className = 'when';
+          note.textContent = '넷리파이에 NOTION_API_KEY 설정이 필요해요';
+          info.appendChild(note);
+        } else {
+          el.classList.add('warn');
+          kind.textContent = '📝 노션 저장 실패';
+          const note = document.createElement('span');
+          note.className = 'when';
+          note.textContent = '잠시 후 다시 시도해주세요';
+          info.appendChild(note);
+        }
+      } else {
+        if (!a.date || !a.time) return;
+        kind.textContent = a.kind === 'event' ? '📅 일정 등록됨' : '⏰ 리마인더 등록됨';
+        const when = document.createElement('span');
+        when.className = 'when';
+        when.textContent = formatWhen(a.date, a.time);
+        info.appendChild(when);
+        const btn = document.createElement('a');
+        btn.href = '#';
+        btn.textContent = '캘린더 보기';
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          if (window.JokerCalendar) window.JokerCalendar.open(a.date);
+        });
+        el.appendChild(btn);
       }
+
       chat.appendChild(el);
       scrollDown();
     }

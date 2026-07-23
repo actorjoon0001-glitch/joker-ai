@@ -9,9 +9,10 @@ import { sb, isDbNotReady } from './_lib/db.js';
 export default async function handler(req, res) {
   try {
     if (req.method === 'GET') {
-      const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+      /* 60 days back so the in-site calendar can show past entries too */
+      const since = new Date(Date.now() - 60 * 24 * 3600 * 1000).toISOString();
       const r = await sb(
-        `joker_events?select=*&due_at=gte.${encodeURIComponent(since)}&order=due_at.asc&limit=100`
+        `joker_events?select=*&due_at=gte.${encodeURIComponent(since)}&order=due_at.asc&limit=200`
       );
       if (isDbNotReady(r.status)) { res.status(503).json({ error: 'db_not_ready' }); return; }
       if (!r.ok) { res.status(502).json({ error: 'db_error' }); return; }
