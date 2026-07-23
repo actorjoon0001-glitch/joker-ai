@@ -23,6 +23,45 @@ async function saveEvent(action) {
   if (!r.ok) console.error('[joker api] event save failed', r.status);
 }
 
+/* [[노션:제목|내용]] tag → Notion page; returns the result the client renders */
+async function saveNotion(action) {
+  const key = process.env.NOTION_API_KEY;
+  const parent = process.env.NOTION_PARENT_PAGE_ID;
+  if (!key || !parent) return { kind: 'notion', title: action.title, status: 'not_configured' };
+  try {
+    const children = action.content.split('\n').map((t) => t.trim()).filter(Boolean).slice(0, 30)
+      .map((t) => ({
+        object: 'block', type: 'paragraph',
+        paragraph: { rich_text: [{ type: 'text', text: { content: t.slice(0, 1800) } }] },
+      }));
+    const base = process.env.NOTION_BASE_URL || 'https://api.notion.com';
+    const r = await fetch(base + '/v1/pages', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer ' + key,
+        'Notion-Version': '2022-06-28',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        parent: { page_id: parent.replace(/-/g, '') },
+        properties: { title: { title: [{ type: 'text', text: { content: action.title.slice(0, 200) } }] } },
+        children,
+      }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      console.error('[joker notion]', r.status, JSON.stringify(j).slice(0, 300));
+      return { kind: 'notion', title: action.title, status: 'error' };
+    }
+    return { kind: 'notion', title: action.title, status: 'saved', url: j.url || null };
+  } catch (err) {
+    console.error('[joker notion]', err);
+    return { kind: 'notion', title: action.title, status: 'error' };
+  }
+}
+
+const CTRL = String.fromCharCode(0); /* NUL frame for control headers */
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'method_not_allowed' });
@@ -62,7 +101,18 @@ export default async function handler(req, res) {
     const filter = createDeptTagFilter(
       (text) => { ensureHeaders(); emitted += text.length; res.write(text); },
       (header) => { ensureHeaders(); res.write(header); },
-      (action) => pendingWrites.push(saveEvent(action).catch((e) => console.error('[joker api] event', e))),
+      (action) => {
+        if (action.kind === 'notion') {
+          /* result header (saved/not_configured/error + url) goes out once the
+             Notion call resolves — the stream stays open until finalMessage */
+          pendingWrites.push(saveNotion(action).then((result) => {
+            ensureHeaders();
+            res.write(CTRL + 'action:' + JSON.stringify(result) + CTRL);
+          }).catch((e) => console.error('[joker api] notion', e)));
+        } else {
+          pendingWrites.push(saveEvent(action).catch((e) => console.error('[joker api] event', e)));
+        }
+      },
     );
 
     stream.on('text', (delta) => filter.feed(delta));
