@@ -225,8 +225,10 @@
       return el;
     }
 
-    /* Typewriter that consumes a growing queue — used for both streamed and canned
-       replies. Returns {push, close, done} where done resolves with the full text. */
+    /* Streamed-reply renderer — used for both streamed and canned replies.
+       Text is appended in chunks (~12 times/sec) instead of per character:
+       long replies read calmly without the rapid flicker, while progress is
+       still visible live. Returns {push, close, done}. */
     function makeTypewriter(el) {
       el.classList.remove('typing-dots');
       el.innerHTML = '<span class="who">Joker</span>';
@@ -241,25 +243,28 @@
       let resolveDone;
       const done = new Promise(r => { resolveDone = r; });
 
+      /* auto-follow only while the reader is already near the bottom, and
+         without smooth animation — per-chunk smooth scrolling is what made
+         long replies feel jittery */
+      const follow = () => {
+        const nearBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 140;
+        if (nearBottom) chat.scrollTop = chat.scrollHeight;
+      };
+
       (function step() {
-        if (queue.length) {
-          /* speed up when the buffer runs deep so we never lag far behind the stream */
-          const n = queue.length > 120 ? 4 : queue.length > 40 ? 2 : 1;
-          const chunk = queue.slice(0, n);
-          queue = queue.slice(n);
-          body.textContent += chunk;
-          full += chunk;
-          scrollDown();
-          const ch = chunk[chunk.length - 1];
-          const delay = /[.!?…]/.test(ch) ? 120 : /\n/.test(ch) ? 160 : 16 + Math.random() * 20;
-          setTimeout(step, delay);
-        } else if (closed) {
+        if (queue) {
+          body.textContent += queue;
+          full += queue;
+          queue = '';
+          follow();
+        }
+        if (closed && !queue) {
           cursor.remove();
           attachCopyBtn(el, full);
           resolveDone(full);
-        } else {
-          setTimeout(step, 40);
+          return;
         }
+        setTimeout(step, 80);
       })();
 
       return {
