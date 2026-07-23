@@ -8,8 +8,20 @@ import {
   MODEL_DEFAULT, OVERLOAD_LINE, sanitizeHistory, buildSystem, createDeptTagFilter,
   validateImage, toApiMessages,
 } from './_lib/core.js';
+import { sb } from './_lib/db.js';
 
 const MODEL = process.env.JOKER_MODEL || MODEL_DEFAULT;
+
+/* [[일정/리마인더]] tag from the stream → Supabase row (best-effort) */
+async function saveEvent(action) {
+  const dueAt = `${action.date}T${action.time}:00+09:00`;
+  if (isNaN(new Date(dueAt).getTime())) return;
+  const r = await sb('joker_events', {
+    method: 'POST',
+    body: JSON.stringify({ kind: action.kind, title: action.title, due_at: dueAt }),
+  });
+  if (!r.ok) console.error('[joker api] event save failed', r.status);
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -41,19 +53,23 @@ export default async function handler(req, res) {
       thinking: { type: 'adaptive' },
       output_config: { effort: 'medium' },
       system: buildSystem(req.body),
+      tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }],
       messages: toApiMessages(history, validateImage(req.body && req.body.image)),
     });
 
     let emitted = 0;
+    const pendingWrites = [];
     const filter = createDeptTagFilter(
       (text) => { ensureHeaders(); emitted += text.length; res.write(text); },
       (header) => { ensureHeaders(); res.write(header); },
+      (action) => pendingWrites.push(saveEvent(action).catch((e) => console.error('[joker api] event', e))),
     );
 
     stream.on('text', (delta) => filter.feed(delta));
 
     const final = await stream.finalMessage();
     filter.flush();
+    await Promise.all(pendingWrites);
 
     if (final.stop_reason === 'refusal' && emitted === 0) {
       ensureHeaders();
