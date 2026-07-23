@@ -386,6 +386,79 @@
 
   .gear.active { color: var(--green); border-color: rgba(88, 255, 155, 0.5); }
 
+  /* ── usage / credit chip + popover ── */
+  .usage-chip {
+    background: none;
+    border: 1px solid rgba(52, 224, 255, 0.22);
+    border-radius: 10px;
+    height: 34px;
+    padding: 0 12px;
+    color: var(--text-dim);
+    font-family: var(--font-tech);
+    font-size: 11.5px;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .usage-chip:hover { color: var(--cyan); border-color: rgba(52, 224, 255, 0.5); }
+  .usage-chip.low { color: #ffb347; border-color: rgba(255, 179, 71, 0.5); }
+
+  .usage-pop {
+    position: fixed;
+    top: 62px;
+    right: max(20px, calc((100vw - 860px) / 2 + 20px));
+    width: min(320px, calc(100vw - 40px));
+    background: rgba(8, 13, 28, 0.97);
+    border: 1px solid rgba(52, 224, 255, 0.3);
+    border-radius: 14px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+    padding: 16px;
+    z-index: 10;
+  }
+  .usage-pop h3 {
+    font-family: var(--font-tech);
+    font-weight: 500;
+    font-size: 12px;
+    letter-spacing: 0.25em;
+    color: var(--cyan);
+    margin-bottom: 12px;
+  }
+  .usage-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 13px;
+    padding: 5px 0;
+  }
+  .usage-row span { color: var(--text-dim); flex-shrink: 0; }
+  .usage-row b { font-weight: 500; color: var(--text); text-align: right; }
+  .usage-set { display: flex; flex-direction: column; gap: 7px; margin-top: 12px; }
+  .usage-set input {
+    background: rgba(10, 18, 36, 0.7);
+    border: 1px solid rgba(52, 224, 255, 0.18);
+    border-radius: 9px;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 13px;
+    padding: 8px 10px;
+    outline: none;
+  }
+  .usage-set input:focus { border-color: rgba(52, 224, 255, 0.5); }
+  .usage-set button {
+    border: none;
+    border-radius: 9px;
+    padding: 9px;
+    cursor: pointer;
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    color: #04121c;
+    background: linear-gradient(135deg, rgba(52, 224, 255, 0.9), rgba(178, 107, 255, 0.85));
+  }
+  .usage-set button:disabled { filter: grayscale(0.5) brightness(0.7); }
+  .usage-note { margin-top: 10px; font-size: 11.5px; line-height: 1.5; color: var(--text-dim); }
+  .usage-note a { color: var(--cyan); }
+
   /* image attach: preview chip above the input + image inside a bubble */
   .composer .attach-preview[hidden] { display: none; }
   .composer .attach-preview {
@@ -899,6 +972,7 @@
       <span class="ver">v3.0 · NEURAL LINK</span>
     </div>
     <div class="head-right">
+      <button class="usage-chip" id="usageChip" hidden aria-label="API 사용량 보기"></button>
       <div class="status" id="status">
         <span class="dot"></span>
         <span id="statusText">Online</span>
@@ -967,6 +1041,19 @@
   </div>
 </div>
 
+<div class="usage-pop" id="usagePop" hidden>
+  <h3>API 사용량 (추정)</h3>
+  <div class="usage-row"><span>오늘</span><b id="usageToday">—</b></div>
+  <div class="usage-row"><span>이번 달</span><b id="usageMonth">—</b></div>
+  <div class="usage-row"><span>잔액 기준</span><b id="usageBase">—</b></div>
+  <div class="usage-set">
+    <input id="usageBaseInput" type="number" min="1" step="0.5" placeholder="충전 금액 (달러, 예: 22)" />
+    <button id="usageBaseSave">이 금액 기준으로 잔액 계산</button>
+  </div>
+  <p class="usage-note">토큰 사용량으로 계산한 추정치예요. 정확한 잔액은
+    <a href="https://console.anthropic.com/settings/billing" target="_blank" rel="noopener">앤트로픽 콘솔</a>에서 확인하세요.</p>
+</div>
+
 <div class="panel-backdrop" id="panelBackdrop" hidden></div>
 <aside class="settings" id="settingsPanel" hidden>
   <div class="settings-head">
@@ -1020,6 +1107,7 @@
 <script src="js/chat.js"></script>
 <script src="js/reminders.js"></script>
 <script src="js/calendar.js"></script>
+<script src="js/usage.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

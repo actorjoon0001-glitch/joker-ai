@@ -224,6 +224,34 @@ async function saveNotion(action) {
 
 const CTRL = String.fromCharCode(0); /* NUL frame for control headers */
 
+/* per-turn token/search usage → joker_usage row (best-effort) */
+async function saveUsage(model, usage) {
+  if (!usage || !Object.keys(usage).length) return;
+  try {
+    const { url, key } = sbConfig();
+    const r = await fetch(url + '/rest/v1/joker_usage', {
+      method: 'POST',
+      headers: {
+        apikey: key,
+        Authorization: 'Bearer ' + key,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        kind: 'turn',
+        model,
+        input_tokens: usage.input_tokens || 0,
+        output_tokens: usage.output_tokens || 0,
+        cache_write_tokens: usage.cache_creation_input_tokens || 0,
+        cache_read_tokens: usage.cache_read_input_tokens || 0,
+        searches: (usage.server_tool_use && usage.server_tool_use.web_search_requests) || 0,
+      }),
+    });
+    if (!r.ok) console.error('[joker edge] usage save failed', r.status);
+  } catch (err) {
+    console.error('[joker edge] usage save', err);
+  }
+}
+
 const ACTION_TAG_RE =
   /\[\[\s*(일정|리마인더)\s*:\s*(\d{4}-\d{2}-\d{2})[ T](\d{1,2}:\d{2})\s*\|\s*([^\]|]{1,150}?)\s*\]\]/;
 
@@ -404,7 +432,7 @@ export default async function handler(request) {
         thinking: { type: 'adaptive' },
         output_config: { effort: 'medium' },
         system: SYSTEM_PROMPT + buildTimeBlock() + (knowledgeBlock || '') + (skillBlock || '') + (buildEventsBlock(body.events) || ''),
-        tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }],
+        tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 }],
         messages: toApiMessages(history, validateImage(body.image)),
       }),
     });
@@ -421,6 +449,7 @@ export default async function handler(request) {
           : { error: 'server_not_configured' });
       }
       if (status === 429) return json(429, { error: 'rate_limited' });
+      if (status === 400 && /credit balance/i.test(detail)) return json(402, { error: 'no_credits' });
       if (status === 400) return json(500, debug ? { error: 'server_not_configured', detail } : { error: 'server_not_configured' });
       return json(502, { error: 'upstream_error' });
     }
@@ -448,6 +477,16 @@ export default async function handler(request) {
 
         let sseBuf = '';
         let stopReason = null;
+        const turnUsage = {}; /* merged from message_start + message_delta events */
+        const mergeUsage = (u) => {
+          if (!u || typeof u !== 'object') return;
+          for (const k of ['input_tokens', 'output_tokens', 'cache_creation_input_tokens', 'cache_read_input_tokens']) {
+            if (typeof u[k] === 'number') turnUsage[k] = u[k];
+          }
+          if (u.server_tool_use && typeof u.server_tool_use.web_search_requests === 'number') {
+            turnUsage.server_tool_use = { web_search_requests: u.server_tool_use.web_search_requests };
+          }
+        };
         const reader = upstream.body.getReader();
         try {
           while (true) {
@@ -462,12 +501,16 @@ export default async function handler(request) {
               try { ev = JSON.parse(line.slice(6)); } catch (_) { continue; }
               if (ev.type === 'content_block_delta' && ev.delta && ev.delta.type === 'text_delta') {
                 filter.feed(ev.delta.text);
-              } else if (ev.type === 'message_delta' && ev.delta && ev.delta.stop_reason) {
-                stopReason = ev.delta.stop_reason;
+              } else if (ev.type === 'message_start' && ev.message) {
+                mergeUsage(ev.message.usage);
+              } else if (ev.type === 'message_delta') {
+                if (ev.delta && ev.delta.stop_reason) stopReason = ev.delta.stop_reason;
+                mergeUsage(ev.usage);
               }
             }
           }
           filter.flush();
+          pendingWrites.push(saveUsage(getEnv('JOKER_MODEL') || MODEL_DEFAULT, turnUsage));
           await Promise.all(pendingWrites);
           if (stopReason === 'refusal' && emitted === 0) {
             controller.enqueue(encoder.encode(OVERLOAD_LINE));

@@ -29,10 +29,29 @@ create table if not exists joker_events (
   created_at timestamptz not null default now()
 );
 
+-- API 사용량 집계 (턴별 토큰·검색 수) + 잔액 기준점(kind='base')
+create table if not exists joker_usage (
+  id bigint generated always as identity primary key,
+  kind text not null default 'turn' check (kind in ('turn', 'base')),
+  model text,
+  input_tokens bigint not null default 0,
+  output_tokens bigint not null default 0,
+  cache_write_tokens bigint not null default 0,
+  cache_read_tokens bigint not null default 0,
+  searches int not null default 0,
+  amount_usd numeric,
+  created_at timestamptz not null default now()
+);
+
 -- RLS: publishable(anon) 키로 이 테이블들만 읽기/쓰기 허용
 alter table joker_memory enable row level security;
 alter table joker_messages enable row level security;
 alter table joker_events enable row level security;
+alter table joker_usage enable row level security;
+
+drop policy if exists "joker anon usage" on joker_usage;
+create policy "joker anon usage" on joker_usage
+  for all to anon using (true) with check (true);
 
 drop policy if exists "joker anon events" on joker_events;
 create policy "joker anon events" on joker_events
