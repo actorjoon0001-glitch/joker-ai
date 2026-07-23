@@ -411,8 +411,66 @@
       return `${p[1]}월 ${p[2]}일 (${wd}) ${time}`;
     }
 
+    /* Higgsfield image job: create → poll /api/media until the image is ready */
+    async function runImageJob(el, info, kindEl, prompt) {
+      const warn = (label, noteText) => {
+        el.classList.add('warn');
+        kindEl.textContent = label;
+        if (noteText) {
+          const note = document.createElement('span');
+          note.className = 'when';
+          note.textContent = noteText;
+          info.appendChild(note);
+        }
+      };
+      try {
+        const r = await fetch('api/media', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ op: 'create', prompt }),
+        });
+        if (r.status === 501) {
+          warn('🎨 이미지 연동 대기', '넷리파이에 HIGGSFIELD_CREDENTIALS 설정이 필요해요');
+          return;
+        }
+        if (!r.ok) throw new Error('create_' + r.status);
+        const { id } = await r.json();
+        if (!id) throw new Error('no_job_id');
+
+        const started = Date.now();
+        while (Date.now() - started < 240000) {
+          await new Promise((res) => setTimeout(res, 3000));
+          let s = null;
+          try { s = await fetch('api/media?id=' + encodeURIComponent(id)).then((x) => x.json()); } catch {}
+          if (!s) continue;
+          if (s.status === 'completed' && s.url) {
+            kindEl.textContent = '🎨 이미지 완성';
+            const img = document.createElement('img');
+            img.className = 'gen';
+            img.src = s.url;
+            img.alt = prompt;
+            img.addEventListener('load', scrollDown);
+            info.appendChild(img);
+            const link = document.createElement('a');
+            link.href = s.url;
+            link.target = '_blank';
+            link.rel = 'noopener';
+            link.textContent = '원본 열기';
+            el.appendChild(link);
+            return;
+          }
+          if (s.status === 'failed') throw new Error('failed');
+          if (s.status === 'nsfw') { warn('🎨 이미지 생성 거절됨', '프롬프트를 바꿔서 다시 시도해주세요'); return; }
+        }
+        throw new Error('timeout');
+      } catch (err) {
+        console.warn('[joker] image job:', err);
+        warn('🎨 이미지 생성 실패', '잠시 후 다시 시도해주세요');
+      }
+    }
+
     function addActionChip(a) {
-      if (!a || !a.title) return;
+      if (!a || (!a.title && !a.prompt)) return;
       const el = document.createElement('div');
       el.className = 'action-chip';
       const info = document.createElement('div');
@@ -424,7 +482,11 @@
       info.append(kind, title);
       el.appendChild(info);
 
-      if (a.kind === 'pdf') {
+      if (a.kind === 'image') {
+        kind.textContent = '🎨 이미지 생성 중…';
+        title.textContent = (a.prompt || '').slice(0, 70);
+        runImageJob(el, info, kind, a.prompt || '');
+      } else if (a.kind === 'pdf') {
         kind.textContent = '📄 PDF 문서 준비됨';
         const btn = document.createElement('a');
         btn.href = '#';
