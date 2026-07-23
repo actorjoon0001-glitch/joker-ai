@@ -402,9 +402,16 @@
   .composer .attach-preview img {
     width: 44px;
     height: 44px;
+    flex-shrink: 0;
     object-fit: cover;
     border-radius: 8px;
     border: 1px solid rgba(52, 224, 255, 0.25);
+    background: rgba(52, 224, 255, 0.08);
+    overflow: hidden;
+    /* if the thumbnail ever fails to render, hide the alt text instead of
+       spilling broken characters into the 44px box */
+    font-size: 0;
+    color: transparent;
   }
   .composer .attach-preview .attach-label {
     flex: 1;
@@ -432,6 +439,9 @@
     border-radius: 10px;
     border: 1px solid rgba(52, 224, 255, 0.25);
     margin: 4px 0 6px;
+    overflow: hidden;
+    font-size: 0;
+    color: transparent;
   }
 
   .composer.dragging .box {

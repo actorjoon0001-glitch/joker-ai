@@ -129,26 +129,51 @@
     async function setImage(blob) {
       if (!blob || !/^image\//.test(blob.type)) return;
       try {
-        const objUrl = URL.createObjectURL(blob);
-        const img = await new Promise((res, rej) => {
-          const i = new Image();
-          i.onload = () => res(i);
-          i.onerror = rej;
-          i.src = objUrl;
-        });
-        /* shrink big screenshots so the payload stays light for the API */
-        const MAX = 1400;
-        const scale = Math.min(1, MAX / Math.max(img.naturalWidth, img.naturalHeight));
-        const w = Math.max(1, Math.round(img.naturalWidth * scale));
-        const h = Math.max(1, Math.round(img.naturalHeight * scale));
-        const canvas = document.createElement('canvas');
-        canvas.width = w;
-        canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        URL.revokeObjectURL(objUrl);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+        let mediaType = 'image/jpeg';
+        let dataUrl = '';
+
+        /* 1st try: shrink big screenshots via canvas so the payload stays light */
+        try {
+          const objUrl = URL.createObjectURL(blob);
+          const img = await new Promise((res, rej) => {
+            const i = new Image();
+            i.onload = () => res(i);
+            i.onerror = rej;
+            i.src = objUrl;
+          });
+          const MAX = 1400;
+          const scale = Math.min(1, MAX / Math.max(img.naturalWidth, img.naturalHeight));
+          const w = Math.max(1, Math.round(img.naturalWidth * scale));
+          const h = Math.max(1, Math.round(img.naturalHeight * scale));
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          URL.revokeObjectURL(objUrl);
+          dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+        } catch {}
+
+        /* canvas can silently return an empty "data:," (size/memory limits,
+           tainted context, odd formats) → fall back to sending the file as-is */
+        if (!dataUrl || dataUrl.length < 100 || dataUrl.indexOf('data:image/') !== 0) {
+          const okTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+          if (!okTypes.includes(blob.type) || blob.size > 4200000) {
+            console.warn('[joker] image unusable (type/size):', blob.type, blob.size);
+            input.placeholder = '이 이미지는 읽을 수 없어요. PNG/JPG로 다시 시도해주세요';
+            setTimeout(() => { input.placeholder = '조커에게 말을 걸어보세요…'; }, 3000);
+            return;
+          }
+          mediaType = blob.type;
+          dataUrl = await new Promise((res, rej) => {
+            const fr = new FileReader();
+            fr.onload = () => res(String(fr.result));
+            fr.onerror = rej;
+            fr.readAsDataURL(blob);
+          });
+        }
+
         pendingImage = {
-          media_type: 'image/jpeg',
+          media_type: mediaType,
           data: dataUrl.slice(dataUrl.indexOf(',') + 1),
           url: dataUrl,
         };
