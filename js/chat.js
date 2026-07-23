@@ -172,12 +172,14 @@
           });
         }
 
+        /* preview/bubble show the ORIGINAL file via object URL — rendering it
+           never depends on the base64 conversion above, so it can't break */
         pendingImage = {
           media_type: mediaType,
           data: dataUrl.slice(dataUrl.indexOf(',') + 1),
-          url: dataUrl,
+          url: URL.createObjectURL(blob),
         };
-        if (attachThumb) attachThumb.src = dataUrl;
+        if (attachThumb) attachThumb.src = pendingImage.url;
         if (attachPreview) attachPreview.hidden = false;
         input.focus();
       } catch (err) {
