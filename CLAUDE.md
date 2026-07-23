@@ -33,3 +33,7 @@
 - PDF: 모델이 [[PDF:제목|내용]] 태그를 붙이면 클라이언트(js/pdf.js)가
   vendor/jspdf + vendor/nanum-font.js(한글 폰트, 지연 로딩)로 .pdf를 만들어
   다운로드 카드를 띄운다. 서버 작업 없음.
+- 이미지 생성: 모델이 [[이미지:영어 프롬프트]] 태그를 붙이면 클라이언트가
+  /api/media(api/media.js, 힉스필드 Higgsfield 프록시)로 잡 생성 후 폴링해
+  완성 이미지를 카드에 띄운다. HIGGSFIELD_CREDENTIALS("keyId:secret",
+  cloud.higgsfield.ai/api-keys에서 발급) 미설정 시 501 → 카드에 안내 표시.
