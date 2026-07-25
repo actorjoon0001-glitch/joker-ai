@@ -26,6 +26,7 @@
       try { audioEl.pause(); } catch {}
       audioEl = null;
     }
+    window.__jokerSpeaking = false; /* wake-word listener may hear again */
   }
 
   function pickKoreanVoice() {
@@ -43,6 +44,9 @@
     if (voice) u.voice = voice;
     u.rate = 1.05;
     u.pitch = 1.0;
+    window.__jokerSpeaking = true; /* keep the wake-word listener deaf to Joker */
+    u.onend = () => { window.__jokerSpeaking = false; };
+    u.onerror = () => { window.__jokerSpeaking = false; };
     synth.speak(u);
   }
 
@@ -66,8 +70,13 @@
           const url = URL.createObjectURL(await res.blob());
           const el = new Audio(url);
           audioEl = el;
-          el.onended = () => { URL.revokeObjectURL(url); if (audioEl === el) audioEl = null; };
-          await el.play().catch(() => {});
+          window.__jokerSpeaking = true;
+          el.onended = () => {
+            URL.revokeObjectURL(url);
+            if (audioEl === el) audioEl = null;
+            window.__jokerSpeaking = false;
+          };
+          await el.play().catch(() => { window.__jokerSpeaking = false; });
           return;
         }
         /* this deploy has no server TTS → remember and stop asking */
@@ -126,6 +135,7 @@
       micBtn.addEventListener('click', () => {
         if (listening) { stopListening(); return; }
         if (synth) synth.cancel();
+        if (window.JokerWake) window.JokerWake.pause(); /* one mic at a time */
 
         rec = new SR();
         rec.lang = 'ko-KR';
@@ -161,6 +171,7 @@
           input.placeholder = '조커에게 말을 걸어보세요…';
           const text = input.value.trim();
           if (text && finalText.trim()) sendBtn.click(); /* auto-send what was heard */
+          if (window.JokerWake) window.JokerWake.resume();
         };
 
         try { rec.start(); } catch (err) { console.warn('[joker voice]', err); listening = false; micBtn.classList.remove('listening'); }

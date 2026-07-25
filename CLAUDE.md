@@ -16,6 +16,10 @@
   `api/history.js`, 스키마는 `supabase/setup.sql` — 대시보드에서 1회 실행 필요).
   Supabase가 준비 안 됐으면 503(db_not_ready)을 반환하고 프론트는
   localStorage로 폴백한다. 스킬은 아직 localStorage에만 저장된다.
+- 음성 호출어: js/wakeword.js가 상시 SpeechRecognition으로 "조커/joker" 호출을
+  감지(호출 전 발화는 전부 무시), 감지 후 받아쓰기→무음 2.2초에 자동 전송.
+  헤더 토글 + 상태 표시등(클릭 시 민감도 전환), 소리 알림 없음. TTS 재생 중에는
+  window.__jokerSpeaking 플래그로 자기 목소리를 무시한다.
 - 음성 답변은 `/api/tts`(api/tts.js, 엣지 사본 netlify/edge-functions/tts.js)가
   일레븐랩스를 프록시한다. ELEVENLABS_API_KEY 미설정 시 501을 반환하고
   프론트(js/voice.js)는 브라우저 내장 speechSynthesis로 폴백한다.
