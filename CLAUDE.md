@@ -40,7 +40,10 @@
 - 코워크 작업 큐: 모델이 [[코워크:요청]] 태그를 붙이면 서버가 joker_tasks에
   저장하고, 코워크(클로드 CCR 세션)의 매시간 루틴(trig_01AgTiEqYt587FRAtA6Lf6zN)이
   pending을 실행해 done/failed + result로 갱신한다. 프론트(js/reminders.js)가
-  /api/tasks를 폴링해 완료 알림을 채팅에 띄운다.
+  /api/tasks를 폴링해 완료 알림을 채팅에 띄운다. 채팅의 코워크 카드에는 상태
+  뱃지(접수됨→작업 중→완료 ✓/실패, js/chat.js trackCoworkTask)가 붙어 45초
+  간격 폴링으로 갱신되고, 완료 시 결과 요약과 "결과 보기" 링크(결과 속 첫
+  URL)를 카드에 표시한다. 진행바/퍼센트는 쓰지 않는다.
 - 이미지 생성: 모델이 [[이미지:영어 프롬프트]] 태그를 붙이면 클라이언트가
   /api/media(api/media.js, 힉스필드 Higgsfield 프록시)로 잡 생성 후 폴링해
   완성 이미지를 카드에 띄운다. HIGGSFIELD_CREDENTIALS("keyId:secret",

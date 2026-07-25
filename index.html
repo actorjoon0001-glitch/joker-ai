@@ -959,6 +959,43 @@
   }
   .action-chip a:hover { border-color: rgba(52, 224, 255, 0.6); background: rgba(52, 224, 255, 0.08); }
 
+  /* cowork task status badge */
+  .task-badge {
+    flex-shrink: 0;
+    font-family: var(--font-tech);
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px solid;
+    white-space: nowrap;
+  }
+  .task-badge.queued {
+    color: var(--text-dim);
+    border-color: rgba(160, 176, 196, 0.35);
+    background: rgba(160, 176, 196, 0.08);
+  }
+  .task-badge.working {
+    color: #ffb347;
+    border-color: rgba(255, 179, 71, 0.45);
+    background: rgba(255, 179, 71, 0.08);
+    animation: badgePulse 1.6s ease-in-out infinite;
+  }
+  .task-badge.done {
+    color: var(--green);
+    border-color: rgba(88, 255, 155, 0.45);
+    background: rgba(88, 255, 155, 0.1);
+  }
+  .task-badge.failed {
+    color: #ff5c5c;
+    border-color: rgba(255, 92, 92, 0.45);
+    background: rgba(255, 92, 92, 0.08);
+  }
+  @keyframes badgePulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+  }
+
   /* copy-reply button at the bottom of a Joker bubble */
   .msg .copy-btn {
     display: flex;
