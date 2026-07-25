@@ -33,6 +33,10 @@
 - PDF: 모델이 [[PDF:제목|내용]] 태그를 붙이면 클라이언트(js/pdf.js)가
   vendor/jspdf + vendor/nanum-font.js(한글 폰트, 지연 로딩)로 .pdf를 만들어
   다운로드 카드를 띄운다. 서버 작업 없음.
+- 코워크 작업 큐: 모델이 [[코워크:요청]] 태그를 붙이면 서버가 joker_tasks에
+  저장하고, 코워크(클로드 CCR 세션)의 매시간 루틴(trig_01AgTiEqYt587FRAtA6Lf6zN)이
+  pending을 실행해 done/failed + result로 갱신한다. 프론트(js/reminders.js)가
+  /api/tasks를 폴링해 완료 알림을 채팅에 띄운다.
 - 이미지 생성: 모델이 [[이미지:영어 프롬프트]] 태그를 붙이면 클라이언트가
   /api/media(api/media.js, 힉스필드 Higgsfield 프록시)로 잡 생성 후 폴링해
   완성 이미지를 카드에 띄운다. HIGGSFIELD_CREDENTIALS("keyId:secret",

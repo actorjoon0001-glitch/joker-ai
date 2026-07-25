@@ -12,6 +12,19 @@ import { sb } from './_lib/db.js';
 
 const MODEL = process.env.JOKER_MODEL || MODEL_DEFAULT;
 
+/* [[코워크:요청]] tag → 작업 큐 row (best-effort) */
+async function saveTask(request) {
+  try {
+    const r = await sb('joker_tasks', {
+      method: 'POST',
+      body: JSON.stringify({ request: String(request).slice(0, 2000) }),
+    });
+    if (!r.ok) console.error('[joker api] task save failed', r.status);
+  } catch (err) {
+    console.error('[joker api] task save', err);
+  }
+}
+
 /* [[일정/리마인더]] tag from the stream → Supabase row (best-effort) */
 async function saveEvent(action) {
   const dueAt = `${action.date}T${action.time}:00+09:00`;
@@ -131,7 +144,9 @@ export default async function handler(req, res) {
             ensureHeaders();
             res.write(CTRL + 'action:' + JSON.stringify(result) + CTRL);
           }).catch((e) => console.error('[joker api] notion', e)));
-        } else {
+        } else if (action.kind === 'cowork') {
+          pendingWrites.push(saveTask(action.request));
+        } else if (action.kind === 'event' || action.kind === 'reminder') {
           pendingWrites.push(saveEvent(action).catch((e) => console.error('[joker api] event', e)));
         }
       },
