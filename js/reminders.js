@@ -55,13 +55,46 @@
     }
   }
 
+  /* ── 코워크 작업 큐: 완료/실패 결과를 채팅으로 알림 ── */
+  let tasksAvailable = location.protocol !== 'file:';
+
+  async function checkTasks() {
+    if (!tasksAvailable) return;
+    try {
+      const r = await fetch('api/tasks');
+      if (r.status === 503 || r.status === 404 || r.status === 405 || r.status === 501) {
+        tasksAvailable = false;
+        return;
+      }
+      if (!r.ok) return;
+      const j = await r.json();
+      for (const t of j.tasks || []) {
+        if (!t || t.notified) continue;
+        if (t.status !== 'done' && t.status !== 'failed') continue;
+        fetch('api/tasks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ op: 'notified', id: t.id }),
+        }).catch(() => {});
+        const msg = t.status === 'done'
+          ? '🤝 코워크 작업 완료 — ' + (t.result || t.request)
+          : '🤝 코워크 작업 실패 — ' + (t.result || t.request) + ' (다시 접수하거나 코워크에서 직접 확인해주세요)';
+        if (window.JokerChat && window.JokerChat.notify) window.JokerChat.notify(msg);
+        if ('Notification' in window && Notification.permission === 'granted') {
+          try { new Notification('JOKER · 코워크', { body: msg.slice(0, 120) }); } catch {}
+        }
+      }
+    } catch {}
+  }
+
   window.JokerEvents = { refresh, list: () => cache, ensurePermission };
 
   (async () => {
     await refresh();
     /* small delay so the boot history-restore finishes before catch-up fires */
     setTimeout(checkDue, 2500);
-    setInterval(async () => { await refresh(); checkDue(); }, POLL_MS);
+    setTimeout(checkTasks, 3500);
+    setInterval(async () => { await refresh(); checkDue(); checkTasks(); }, POLL_MS);
     /* also tick between polls so a reminder fires within ~15s of its time */
     setInterval(checkDue, 15000);
   })();

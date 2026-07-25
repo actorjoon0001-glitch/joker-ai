@@ -43,11 +43,27 @@ create table if not exists joker_usage (
   created_at timestamptz not null default now()
 );
 
+-- 코워크 작업 큐 (조커가 접수, 코워크(Claude)가 실행)
+create table if not exists joker_tasks (
+  id bigint generated always as identity primary key,
+  status text not null default 'pending' check (status in ('pending', 'in_progress', 'done', 'failed')),
+  request text not null,
+  result text,
+  notified boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 -- RLS: publishable(anon) 키로 이 테이블들만 읽기/쓰기 허용
 alter table joker_memory enable row level security;
 alter table joker_messages enable row level security;
 alter table joker_events enable row level security;
 alter table joker_usage enable row level security;
+alter table joker_tasks enable row level security;
+
+drop policy if exists "joker anon tasks" on joker_tasks;
+create policy "joker anon tasks" on joker_tasks
+  for all to anon using (true) with check (true);
 
 drop policy if exists "joker anon usage" on joker_usage;
 create policy "joker anon usage" on joker_usage

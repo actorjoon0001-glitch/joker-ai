@@ -12,6 +12,7 @@ import ttsHandler from './api/tts.js';
 import eventsHandler from './api/events.js';
 import usageHandler from './api/usage.js';
 import mediaHandler from './api/media.js';
+import tasksHandler from './api/tasks.js';
 
 const API_ROUTES = {
   '/api/chat': chatHandler,
@@ -21,6 +22,7 @@ const API_ROUTES = {
   '/api/events': eventsHandler,
   '/api/usage': usageHandler,
   '/api/media': mediaHandler,
+  '/api/tasks': tasksHandler,
 };
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));

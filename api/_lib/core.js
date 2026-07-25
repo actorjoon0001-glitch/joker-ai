@@ -24,6 +24,7 @@ export const SYSTEM_PROMPT = `너는 '조커(Joker)'라는 이름의 개인 AI �
 - 일정·리마인더: 상준님이 대화로 부탁하면 네가 직접 등록하고, 시간이 되면 웹페이지가 알림을 띄워줌(웹페이지가 열려 있을 때 확실히 작동). [등록된 일정·리마인더] 블록이 주입되면 그 목록이 현재 등록 상태야.
 - PDF 문서: 상준님이 "PDF로 줘", "문서로 뽑아줘" 하면 네가 문서를 만들어주고 채팅에 다운로드 카드가 뜸.
 - 이미지 생성: 상준님이 "~이미지 만들어줘", "시안 뽑아줘" 하면 힉스필드(Higgsfield)로 이미지를 생성해 채팅 카드에 띄워줌. 관리자가 넷리파이 환경변수에 HIGGSFIELD_CREDENTIALS를 등록해야 활성화되고, 미등록이면 카드에 안내가 뜸. 생성에 힉스필드 크레딧이 소모됨.
+- 코워크 위임: 자료 조사, 보고서·엑셀 제작, 웹페이지 개발·수정 같은 무거운 작업은 네가 코워크(클라우드 실무 AI)에게 접수해줄 수 있음. 접수하면 코워크가 1시간 이내에 확인해 실행하고, 완료되면 채팅 알림과 노션으로 결과를 돌려줌.
 - 노션 기록: 상준님이 "노션에 저장해줘", "메모해줘", "회의록으로 정리해줘" 하면 네가 노션 페이지를 만들어 저장함. 관리자가 넷리파이 환경변수에 NOTION_API_KEY와 NOTION_PARENT_PAGE_ID를 등록해야 활성화되고, 미등록이면 확인 카드에 설정 안내가 뜸.
 
 일정·리마인더 등록 방법(실제로 작동하는 시스템 명령): 상준님이 일정을 잡거나 알림을 요청하면 답변 본문 맨 끝에 다음 형식의 태그를 정확히 붙여 — [[리마인더:YYYY-MM-DD HH:MM|내용]] 또는 [[일정:YYYY-MM-DD HH:MM|제목]]. '내일 아침 9시', '금요일 2시' 같은 상대 표현은 아래 현재 시각 기준으로 계산하고, 날짜나 시간이 애매하면 태그를 붙이지 말고 먼저 되물어. 이 태그는 시스템이 자동으로 잘라내 저장·알림 처리하고 사용자에게는 확인 카드로 보여주니, 본문에서는 '등록해뒀다'고 짧게 말하면 돼. 등록 요청이 아닐 때는 절대 이 태그를 쓰지 마.
@@ -33,6 +34,8 @@ export const SYSTEM_PROMPT = `너는 '조커(Joker)'라는 이름의 개인 AI �
 PDF 문서 방법(시스템 명령): 상준님이 PDF로 달라고 하거나 문서·보고서·견적서 파일로 뽑아 달라고 하면 답변 맨 끝에 [[PDF:제목|내용]] 태그를 붙여. 내용이 문서 본문 그대로 PDF가 되니 줄바꿈으로 문단·항목을 정리해 1200자 이내로 작성해. 본문에서는 '문서 준비됐다, 카드에서 다운로드하면 된다'고 짧게 말해. 요청이 없으면 절대 쓰지 마.
 
 이미지 생성 방법(시스템 명령): 상준님이 이미지·시안·썸네일을 만들어 달라고 하면 답변 맨 끝에 [[이미지:프롬프트]] 태그를 붙여. 프롬프트는 영어로, 장면·스타일·조명·구도를 구체적으로 묘사해(예: modern Korean house exterior, warm sunset light, photorealistic, wide shot). 본문에서는 '생성 시작했다, 잠시 후 카드에 뜬다'고 짧게 말해. 요청이 없으면 절대 쓰지 마.
+
+코워크 위임 방법(시스템 명령): 상준님이 자료 조사·비교 분석, 보고서/엑셀/문서 파일 제작, 웹페이지 개발·수정처럼 네가 채팅 답변만으로 완결할 수 없는 무거운 작업을 요청하거나 '코워크한테 시켜줘'라고 하면, 답변 맨 끝에 [[코워크:요청 상세]] 태그를 붙여. 요청 상세는 코워크(클라우드에서 일하는 실무 AI)가 이 대화를 못 본 상태에서도 바로 실행할 수 있게 목적·대상·결과물 형식을 구체적으로 적어. 본문에서는 '코워크에 접수했다, 완료되면 알려드린다'고 말해. 네가 채팅으로 바로 답할 수 있는 일은 위임하지 말고 직접 해.
 
 출력 형식: 답변은 채팅 UI에 한 글자씩 타이핑되듯 표시되므로 마크다운 서식(별표 강조, 헤더, 코드블록 등) 없이 자연스러운 순수 텍스트로만 써. 목록이 필요하면 줄바꿈과 하이픈 정도만 사용해.`;
 
@@ -193,6 +196,10 @@ export const PDF_TAG_RE =
 export const IMAGE_TAG_RE =
   /\[\[\s*이미지\s*:\s*([\s\S]{1,600}?)\s*\]\]/;
 
+/* [[코워크:요청]] — delegate heavy work to the Cowork agent queue */
+export const COWORK_TAG_RE =
+  /\[\[\s*코워크\s*:\s*([\s\S]{1,1000}?)\s*\]\]/;
+
 /* Stream filter: buffers the model's leading [부서:팀명] tag and emits a
    "\u0000dept:<key>\u0000" control header instead; additionally strips inline
    [[일정/리마인더:...]] action tags anywhere in the stream, emitting
@@ -228,8 +235,9 @@ export function createDeptTagFilter(writeText, writeHeader, onAction) {
       const n = m ? null : tag.match(NOTION_TAG_RE);
       const p = m || n ? null : tag.match(PDF_TAG_RE);
       const g = m || n || p ? null : tag.match(IMAGE_TAG_RE);
+      const w = m || n || p || g ? null : tag.match(COWORK_TAG_RE);
       s = s.slice(end + 2);
-      if (m || n || p || g) {
+      if (m || n || p || g || w) {
         const action = m
           ? {
               kind: m[1] === '일정' ? 'event' : 'reminder',
@@ -241,10 +249,12 @@ export function createDeptTagFilter(writeText, writeHeader, onAction) {
           ? { kind: 'notion', title: n[1].trim(), content: n[2].trim() }
           : p
           ? { kind: 'pdf', title: p[1].trim(), content: p[2].trim() }
-          : { kind: 'image', prompt: g[1].trim() };
-        /* schedule/pdf/image tags get their header immediately; notion result
-           headers are written by the handler once the Notion API call resolves */
-        if (m || p || g) writeHeader('\u0000action:' + JSON.stringify(action) + '\u0000');
+          : g
+          ? { kind: 'image', prompt: g[1].trim() }
+          : { kind: 'cowork', request: w[1].trim() };
+        /* schedule/pdf/image/cowork tags get their header immediately; notion
+           result headers are written once the Notion API call resolves */
+        if (m || p || g || w) writeHeader('\u0000action:' + JSON.stringify(action) + '\u0000');
         if (onAction) { try { onAction(action); } catch {} }
         if (s.charAt(0) === '\n') s = s.slice(1); /* swallow the tag's line break */
         while (out.length && (out.endsWith(' ') || out.endsWith('\n'))) out = out.slice(0, -1);

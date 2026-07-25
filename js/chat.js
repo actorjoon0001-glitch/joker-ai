@@ -470,7 +470,7 @@
     }
 
     function addActionChip(a) {
-      if (!a || (!a.title && !a.prompt)) return;
+      if (!a || (!a.title && !a.prompt && !a.request)) return;
       const el = document.createElement('div');
       el.className = 'action-chip';
       const info = document.createElement('div');
@@ -482,7 +482,14 @@
       info.append(kind, title);
       el.appendChild(info);
 
-      if (a.kind === 'image') {
+      if (a.kind === 'cowork') {
+        kind.textContent = '🤝 코워크에 접수됨';
+        title.textContent = (a.request || '').slice(0, 80);
+        const note = document.createElement('span');
+        note.className = 'when';
+        note.textContent = '코워크가 1시간 내 확인해요. 완료되면 여기로 알림이 옵니다';
+        info.appendChild(note);
+      } else if (a.kind === 'image') {
         kind.textContent = '🎨 이미지 생성 중…';
         title.textContent = (a.prompt || '').slice(0, 70);
         runImageJob(el, info, kind, a.prompt || '');
