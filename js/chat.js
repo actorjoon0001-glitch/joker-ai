@@ -411,6 +411,73 @@
       return `${p[1]}월 ${p[2]}일 (${wd}) ${time}`;
     }
 
+    /* ── cowork task card: simple status badge (접수됨 → 작업 중 → 완료/실패).
+       Structured as a status→style map so finer-grained stages can be added
+       later without reworking the card. ── */
+    const COWORK_STATES = {
+      pending: { label: '접수됨', cls: 'queued' },
+      in_progress: { label: '작업 중', cls: 'working' },
+      done: { label: '완료 ✓', cls: 'done' },
+      failed: { label: '실패', cls: 'failed' },
+    };
+
+    function setCoworkBadge(badge, status) {
+      const s = COWORK_STATES[status] || COWORK_STATES.pending;
+      badge.className = 'task-badge ' + s.cls;
+      badge.textContent = s.label;
+    }
+
+    async function trackCoworkTask(el, info, badge, request) {
+      const pollMs = window.__coworkPollMs || 45000;
+      const fetchTasks = async () => {
+        try {
+          const r = await fetch('api/tasks');
+          if (!r.ok) return null;
+          return (await r.json()).tasks || [];
+        } catch { return null; }
+      };
+
+      /* find the queue row this card just created (newest matching request) */
+      let taskId = null;
+      for (let i = 0; i < 5 && !taskId; i++) {
+        await new Promise((r) => setTimeout(r, 1800));
+        const tasks = await fetchTasks();
+        if (!tasks) continue;
+        const t = tasks.find((x) => x.request && x.request.slice(0, 80) === request.slice(0, 80));
+        if (t) taskId = t.id;
+      }
+      if (!taskId) return; /* queue table not ready — badge stays 접수됨 */
+
+      const started = Date.now();
+      while (Date.now() - started < 4 * 3600 * 1000) {
+        const tasks = await fetchTasks();
+        const t = tasks && tasks.find((x) => x.id === taskId);
+        if (t) {
+          setCoworkBadge(badge, t.status);
+          if (t.status === 'done' || t.status === 'failed') {
+            if (t.result) {
+              const note = document.createElement('span');
+              note.className = 'when';
+              note.textContent = t.result.slice(0, 220);
+              info.appendChild(note);
+              const url = (t.result.match(/https?:\/\/[^\s)"']+/) || [])[0];
+              if (url && t.status === 'done') {
+                const link = document.createElement('a');
+                link.href = url;
+                link.target = '_blank';
+                link.rel = 'noopener';
+                link.textContent = '결과 보기';
+                el.appendChild(link);
+              }
+            }
+            scrollDown();
+            return;
+          }
+        }
+        await new Promise((r) => setTimeout(r, pollMs));
+      }
+    }
+
     /* Higgsfield image job: create → poll /api/media until the image is ready */
     async function runImageJob(el, info, kindEl, prompt) {
       const warn = (label, noteText) => {
@@ -483,12 +550,12 @@
       el.appendChild(info);
 
       if (a.kind === 'cowork') {
-        kind.textContent = '🤝 코워크에 접수됨';
+        kind.textContent = '🤝 코워크 작업';
         title.textContent = (a.request || '').slice(0, 80);
-        const note = document.createElement('span');
-        note.className = 'when';
-        note.textContent = '코워크가 1시간 내 확인해요. 완료되면 여기로 알림이 옵니다';
-        info.appendChild(note);
+        const badge = document.createElement('span');
+        setCoworkBadge(badge, 'pending');
+        el.appendChild(badge);
+        trackCoworkTask(el, info, badge, a.request || '');
       } else if (a.kind === 'image') {
         kind.textContent = '🎨 이미지 생성 중…';
         title.textContent = (a.prompt || '').slice(0, 70);
