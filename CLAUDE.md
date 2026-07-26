@@ -24,10 +24,21 @@
   일레븐랩스를 프록시한다. ELEVENLABS_API_KEY 미설정 시 501을 반환하고
   프론트(js/voice.js)는 브라우저 내장 speechSynthesis로 폴백한다.
 - 조커의 액션 태그: 모델이 답변에 `[[리마인더/일정:YYYY-MM-DD HH:MM|제목]]` 또는
-  `[[노션:제목|내용]]`을 붙이면 스트림 필터(core.js·엣지 사본)가 잘라내
-  NUL 프레임 `action:` 헤더로 클라이언트에 전달한다. 일정/리마인더는 서버가
+  `[[노션:제목|내용]]`을 붙이면 스트림 필터(core.js `parseActionTag`·엣지 사본)가
+  잘라내 NUL 프레임 `action:` 헤더로 클라이언트에 전달한다. 일정/리마인더는 서버가
   Supabase joker_events에 저장하고, 노션은 NOTION_API_KEY·NOTION_PARENT_PAGE_ID
   환경변수가 있을 때 노션 페이지를 생성한다(없으면 not_configured 카드).
+- 노션 페이지 조작 태그: `[[노션검색:검색어]]` / `[[노션읽기:ID나 제목]]` /
+  `[[노션추가:ID나 제목|내용]]`(맨 아래 append) / `[[노션수정:ID나 제목|새 내용 전체]]`
+  (본문 교체, 30블록 초과 시 too_big 거절) / `[[노션삭제:ID나 제목]]`. 공용 로직은
+  `api/_lib/notion.js`(엣지 사본은 chat.js 안에 인라인). 제목이 여러 페이지와 겹치면
+  choose 카드로 후보를 보여주고 사용자가 골라야 진행된다. 검색·읽기 결과는
+  클라이언트(js/chat.js notionCtx)가 다음 요청 body.notion으로 되보내
+  `buildNotionBlock`이 시스템 프롬프트에 [노션 조회 결과]로 주입한다.
+- 노션 삭제 안전장치: 서버는 [[노션삭제]]에서 절대 바로 지우지 않고 confirm 카드만
+  띄운다. 사용자가 카드의 "삭제 확인"을 눌러야 클라이언트가 POST /api/notion
+  (api/notion.js, op:'archive', 페이지 1개만 허용)을 호출해 노션 휴지통으로
+  보낸다(archived:true, 복구 가능). 대량 삭제 경로는 의도적으로 없다.
 - js/reminders.js가 /api/events를 폴링해 기한 도래 시 말풍선·음성·브라우저
   알림을 울리고, js/calendar.js가 사이트 내 월별 캘린더 패널(헤더 📅 버튼)을
   그린다. 웹 검색은 Anthropic 서버측 web_search 도구로 켜져 있다.

@@ -68,6 +68,8 @@ localStorage이며, 서버 주입 지점은 `api/chat.js`의 `buildSkillBlock`�
 | `js/skills.js` | 스킬 탭 (등록 UI + 키워드 매칭) |
 | `js/main.js` | 3D/2D 부트 선택 및 폴백 스왑 |
 | `api/chat.js` | Claude API 스트리밍 백엔드 (Vercel 서버리스 함수 호환) |
+| `api/_lib/notion.js` | 노션 페이지 검색·읽기·추가·수정·휴지통 공용 헬퍼 |
+| `api/notion.js` | 사용자가 카드에서 확인한 노션 삭제(휴지통 이동) 전용 엔드포인트 |
 | `server.js` | 로컬 개발 서버 |
 | `vendor/` | three.js, GSAP (오프라인 동작을 위해 번들) |
 
