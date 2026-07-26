@@ -9,6 +9,9 @@ import {
   validateImage, toApiMessages,
 } from './_lib/core.js';
 import { sb } from './_lib/db.js';
+import {
+  notionEnv, resolveTarget, searchPages, listBlocks, blocksToText, appendBlocks, replaceBlocks,
+} from './_lib/notion.js';
 
 const MODEL = process.env.JOKER_MODEL || MODEL_DEFAULT;
 
@@ -70,6 +73,45 @@ async function saveNotion(action) {
   } catch (err) {
     console.error('[joker notion]', err);
     return { kind: 'notion', title: action.title, status: 'error' };
+  }
+}
+
+/* [[노션검색/읽기/추가/수정/삭제:...]] tags → Notion page op; returns the
+   result object the client renders as a card. notion_delete performs NO
+   write here — it only resolves the target so the client can show a
+   confirmation card; the actual archive happens via POST /api/notion after
+   the user confirms. */
+async function runNotionOp(action) {
+  const env = notionEnv();
+  const base = { kind: action.kind, title: action.target || action.query || '' };
+  if (!env.configured) return { ...base, status: 'not_configured' };
+  try {
+    if (action.kind === 'notion_search') {
+      const results = await searchPages(env, action.query);
+      return { kind: 'notion_search', status: 'ok', query: action.query, results };
+    }
+    const r = await resolveTarget(env, action.target);
+    if (!r.page) return { ...base, status: r.status, candidates: r.candidates };
+    const page = r.page;
+    if (action.kind === 'notion_read') {
+      const content = blocksToText(await listBlocks(env, page.id));
+      return { kind: 'notion_read', status: 'ok', page, content };
+    }
+    if (action.kind === 'notion_append') {
+      await appendBlocks(env, page.id, action.content);
+      return { kind: 'notion_append', status: 'ok', page };
+    }
+    if (action.kind === 'notion_update') {
+      const status = await replaceBlocks(env, page.id, action.content);
+      return { kind: 'notion_update', status, page };
+    }
+    if (action.kind === 'notion_delete') {
+      return { kind: 'notion_delete', status: 'confirm', page };
+    }
+    return { ...base, status: 'error' };
+  } catch (err) {
+    console.error('[joker notion op]', action.kind, err);
+    return { ...base, status: 'error' };
   }
 }
 
@@ -144,6 +186,11 @@ export default async function handler(req, res) {
             ensureHeaders();
             res.write(CTRL + 'action:' + JSON.stringify(result) + CTRL);
           }).catch((e) => console.error('[joker api] notion', e)));
+        } else if (action.kind.indexOf('notion_') === 0) {
+          pendingWrites.push(runNotionOp(action).then((result) => {
+            ensureHeaders();
+            res.write(CTRL + 'action:' + JSON.stringify(result) + CTRL);
+          }).catch((e) => console.error('[joker api] notion op', e)));
         } else if (action.kind === 'cowork') {
           pendingWrites.push(saveTask(action.request));
         } else if (action.kind === 'event' || action.kind === 'reminder') {

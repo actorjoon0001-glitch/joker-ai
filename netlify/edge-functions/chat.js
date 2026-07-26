@@ -27,11 +27,18 @@ const SYSTEM_PROMPT = `너는 '조커(Joker)'라는 이름의 개인 AI 비서�
 - PDF 문서: 상준님이 "PDF로 줘", "문서로 뽑아줘" 하면 네가 문서를 만들어주고 채팅에 다운로드 카드가 뜸.
 - 이미지 생성: 상준님이 "~이미지 만들어줘", "시안 뽑아줘" 하면 힉스필드(Higgsfield)로 이미지를 생성해 채팅 카드에 띄워줌. 관리자가 넷리파이 환경변수에 HIGGSFIELD_CREDENTIALS를 등록해야 활성화되고, 미등록이면 카드에 안내가 뜸. 생성에 힉스필드 크레딧이 소모됨.
 - 코워크 위임: 자료 조사, 보고서·엑셀 제작, 웹페이지 개발·수정 같은 무거운 작업은 네가 코워크(클라우드 실무 AI)에게 접수해줄 수 있음. 접수하면 코워크가 1시간 이내에 확인해 실행하고, 완료되면 채팅 알림과 노션으로 결과를 돌려줌.
-- 노션 기록: 상준님이 "노션에 저장해줘", "메모해줘", "회의록으로 정리해줘" 하면 네가 노션 페이지를 만들어 저장함. 관리자가 넷리파이 환경변수에 NOTION_API_KEY와 NOTION_PARENT_PAGE_ID를 등록해야 활성화되고, 미등록이면 확인 카드에 설정 안내가 뜸.
+- 노션 연동: 네가 노션 페이지를 새로 만들 수 있을 뿐 아니라, 기존 페이지를 검색·읽기·내용 이어붙이기·수정·삭제(휴지통 이동, 상준님 확인 필수)까지 할 수 있음. 관리자가 넷리파이 환경변수에 NOTION_API_KEY와 NOTION_PARENT_PAGE_ID를 등록해야 활성화되고, 미등록이면 확인 카드에 설정 안내가 뜸.
 
 일정·리마인더 등록 방법(실제로 작동하는 시스템 명령): 상준님이 일정을 잡거나 알림을 요청하면 답변 본문 맨 끝에 다음 형식의 태그를 정확히 붙여 — [[리마인더:YYYY-MM-DD HH:MM|내용]] 또는 [[일정:YYYY-MM-DD HH:MM|제목]]. '내일 아침 9시', '금요일 2시' 같은 상대 표현은 아래 현재 시각 기준으로 계산하고, 날짜나 시간이 애매하면 태그를 붙이지 말고 먼저 되물어. 이 태그는 시스템이 자동으로 잘라내 저장·알림 처리하고 사용자에게는 확인 카드로 보여주니, 본문에서는 '등록해뒀다'고 짧게 말하면 돼. 등록 요청이 아닐 때는 절대 이 태그를 쓰지 마.
 
-노션 저장 방법(시스템 명령): 상준님이 내용을 노션에 저장·정리해 달라고 하면 답변 맨 끝에 [[노션:제목|내용]] 태그를 붙여. 제목은 짧고 명확하게, 내용은 줄바꿈으로 문단을 나눠 800자 이내로 깔끔하게 정리해(대화 요약, 회의록, 아이디어 등 저장할 실제 내용). 저장 요청이 없으면 절대 쓰지 마.
+노션 사용 방법(시스템 명령): 노션 페이지를 만들고, 찾고, 읽고, 고치고, 지울 수 있어. 상준님이 요청하면 답변 맨 끝에 아래 태그를 붙여 — 시스템이 잘라내 실행하고 결과를 카드로 보여줘. 한 답변에 노션 태그는 1개만 써.
+- 새 페이지 저장: [[노션:제목|내용]] — 제목은 짧고 명확하게, 내용은 줄바꿈으로 문단을 나눠 800자 이내로 정리해.
+- 페이지 검색: [[노션검색:검색어]] — 상준님이 말한 페이지가 어떤 것인지 확실하지 않을 때 먼저 검색해. 결과 목록(제목+ID)이 카드로 뜨고 다음 턴에 [노션 조회 결과] 블록으로도 주입돼.
+- 페이지 읽기: [[노션읽기:페이지ID 또는 정확한 제목]] — 읽은 내용은 다음 턴에 [노션 조회 결과] 블록으로 주입되니, 본문에서는 '가져왔다, 이어서 물어봐 달라'고 짧게 말해.
+- 내용 이어붙이기: [[노션추가:페이지ID 또는 정확한 제목|추가할 내용]] — 기존 페이지 맨 아래에 덧붙여(기능 로그 갱신 등). 기존 내용을 유지할 때는 수정 대신 반드시 이걸 써.
+- 내용 수정: [[노션수정:페이지ID 또는 정확한 제목|새 내용 전체]] — 페이지 본문이 통째로 새 내용으로 교체되니, 남겨야 할 내용까지 포함한 완성본을 써.
+- 페이지 삭제: [[노션삭제:페이지ID 또는 정확한 제목]] — 바로 지워지지 않고 상준님에게 확인 카드가 뜨며, 상준님이 카드에서 확인해야 노션 휴지통으로 이동돼(복구 가능). 상준님이 명시적으로 삭제를 요청했을 때만, 한 번에 한 페이지만 써.
+대상 지정 규칙: [노션 조회 결과] 블록에 페이지 ID가 보이면 반드시 그 ID를 대상으로 써. 제목으로 지정했는데 같은 제목이 여러 개면 시스템이 후보 카드를 띄워 상준님이 고르고, 선택한 페이지가 ID와 함께 다음 메시지로 들어와. 수정·삭제처럼 실수하면 안 되는 작업은 대상이 확실하지 않으면 먼저 [[노션검색:...]]으로 확인해. 노션 관련 요청이 없으면 이 태그들을 절대 쓰지 마.
 
 PDF 문서 방법(시스템 명령): 상준님이 PDF로 달라고 하거나 문서·보고서·견적서 파일로 뽑아 달라고 하면 답변 맨 끝에 [[PDF:제목|내용]] 태그를 붙여. 내용이 문서 본문 그대로 PDF가 되니 줄바꿈으로 문단·항목을 정리해 1200자 이내로 작성해. 본문에서는 '문서 준비됐다, 카드에서 다운로드하면 된다'고 짧게 말해. 요청이 없으면 절대 쓰지 마.
 
@@ -251,6 +258,205 @@ async function saveNotion(action) {
   }
 }
 
+/* ── Notion page ops (search/read/append/update/archive-confirm) ──
+   Mirrors api/_lib/notion.js — keep the two in sync. */
+const NOTION_VERSION = '2022-06-28';
+
+function notionEnvEdge() {
+  const key = getEnv('NOTION_API_KEY');
+  const parent = getEnv('NOTION_PARENT_PAGE_ID');
+  const base = getEnv('NOTION_BASE_URL') || 'https://api.notion.com';
+  return { key, parent, base, configured: Boolean(key && parent) };
+}
+
+async function nfetch(env, path, opts = {}) {
+  const r = await fetch(env.base + path, {
+    ...opts,
+    headers: {
+      Authorization: 'Bearer ' + env.key,
+      'Notion-Version': NOTION_VERSION,
+      'Content-Type': 'application/json',
+      ...(opts.headers || {}),
+    },
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    console.error('[joker edge notion]', path, r.status, JSON.stringify(j).slice(0, 300));
+    const e = new Error('notion_' + r.status);
+    e.status = r.status;
+    throw e;
+  }
+  return j;
+}
+
+function extractPageId(target) {
+  const t = String(target || '').trim();
+  const bare = t.replace(/-/g, '');
+  if (/^[0-9a-f]{32}$/i.test(bare)) return bare.toLowerCase();
+  if (/notion\.(?:so|site|com)\//i.test(t)) {
+    const m = t.match(/([0-9a-f]{32})(?:[^0-9a-f]|$)/i);
+    if (m) return m[1].toLowerCase();
+  }
+  return null;
+}
+
+function pageTitle(page) {
+  try {
+    const prop = Object.values(page.properties || {}).find((p) => p && p.type === 'title');
+    const t = ((prop && prop.title) || []).map((x) => x.plain_text || '').join('').trim();
+    return t || '(제목 없음)';
+  } catch (_) {
+    return '(제목 없음)';
+  }
+}
+
+async function searchPages(env, query) {
+  const j = await nfetch(env, '/v1/search', {
+    method: 'POST',
+    body: JSON.stringify({
+      query: String(query).slice(0, 100),
+      filter: { value: 'page', property: 'object' },
+      page_size: 5,
+    }),
+  });
+  return (j.results || [])
+    .filter((r) => r && r.object === 'page' && !r.archived)
+    .map((p) => ({ id: p.id.replace(/-/g, ''), title: pageTitle(p), url: p.url || null }));
+}
+
+async function resolveTarget(env, target) {
+  const id = extractPageId(target);
+  if (id) {
+    try {
+      const page = await nfetch(env, '/v1/pages/' + id);
+      if (page.archived) return { status: 'not_found' };
+      return { page: { id, title: pageTitle(page), url: page.url || null } };
+    } catch (_) {
+      return { status: 'not_found' };
+    }
+  }
+  const results = await searchPages(env, target);
+  if (!results.length) return { status: 'not_found' };
+  const wanted = String(target).trim();
+  const exact = results.filter((r) => r.title.trim() === wanted);
+  if (exact.length === 1) return { page: exact[0] };
+  if (results.length === 1) return { page: results[0] };
+  return { status: 'choose', candidates: results };
+}
+
+const TEXT_BLOCKS = {
+  paragraph: '', heading_1: '# ', heading_2: '## ', heading_3: '### ',
+  bulleted_list_item: '- ', numbered_list_item: '- ', to_do: '☐ ',
+  quote: '> ', callout: '', toggle: '',
+};
+
+async function listBlocks(env, pageId) {
+  const j = await nfetch(env, '/v1/blocks/' + pageId + '/children?page_size=100');
+  return j.results || [];
+}
+
+function blocksToText(blocks, cap = 3000) {
+  const lines = [];
+  for (const b of blocks) {
+    if (!b || typeof b.type !== 'string') continue;
+    if (b.type === 'divider') { lines.push('---'); continue; }
+    if (!(b.type in TEXT_BLOCKS)) continue;
+    const conf = b[b.type];
+    const txt = ((conf && conf.rich_text) || []).map((x) => x.plain_text || '').join('');
+    if (txt.trim()) lines.push(TEXT_BLOCKS[b.type] + txt);
+  }
+  let out = lines.join('\n');
+  if (out.length > cap) out = out.slice(0, cap) + '\n…(이하 생략)';
+  return out;
+}
+
+function contentToBlocks(content) {
+  return String(content).split('\n').map((t) => t.trim()).filter(Boolean).slice(0, 30)
+    .map((t) => ({
+      object: 'block', type: 'paragraph',
+      paragraph: { rich_text: [{ type: 'text', text: { content: t.slice(0, 1800) } }] },
+    }));
+}
+
+async function appendBlocks(env, pageId, content) {
+  await nfetch(env, '/v1/blocks/' + pageId + '/children', {
+    method: 'PATCH',
+    body: JSON.stringify({ children: contentToBlocks(content) }),
+  });
+}
+
+async function replaceBlocks(env, pageId, content) {
+  const blocks = await listBlocks(env, pageId);
+  if (blocks.length > 30) return 'too_big';
+  for (const b of blocks) {
+    await nfetch(env, '/v1/blocks/' + b.id, { method: 'DELETE' });
+  }
+  await appendBlocks(env, pageId, content);
+  return 'ok';
+}
+
+/* notion_delete performs NO write here — the client shows a confirmation
+   card and the archive runs via POST /api/notion after the user confirms. */
+async function runNotionOp(action) {
+  const env = notionEnvEdge();
+  const base = { kind: action.kind, title: action.target || action.query || '' };
+  if (!env.configured) return { ...base, status: 'not_configured' };
+  try {
+    if (action.kind === 'notion_search') {
+      const results = await searchPages(env, action.query);
+      return { kind: 'notion_search', status: 'ok', query: action.query, results };
+    }
+    const r = await resolveTarget(env, action.target);
+    if (!r.page) return { ...base, status: r.status, candidates: r.candidates };
+    const page = r.page;
+    if (action.kind === 'notion_read') {
+      const content = blocksToText(await listBlocks(env, page.id));
+      return { kind: 'notion_read', status: 'ok', page, content };
+    }
+    if (action.kind === 'notion_append') {
+      await appendBlocks(env, page.id, action.content);
+      return { kind: 'notion_append', status: 'ok', page };
+    }
+    if (action.kind === 'notion_update') {
+      const status = await replaceBlocks(env, page.id, action.content);
+      return { kind: 'notion_update', status, page };
+    }
+    if (action.kind === 'notion_delete') {
+      return { kind: 'notion_delete', status: 'confirm', page };
+    }
+    return { ...base, status: 'error' };
+  } catch (err) {
+    console.error('[joker edge notion op]', action.kind, err);
+    return { ...base, status: 'error' };
+  }
+}
+
+/* Recent Notion read/search results (sent back by the client) → system block */
+function buildNotionBlock(items) {
+  if (!Array.isArray(items) || !items.length) return null;
+  const out = [];
+  for (const it of items.slice(-2)) {
+    if (!it || typeof it !== 'object') continue;
+    if (it.kind === 'read' && it.title && typeof it.content === 'string') {
+      out.push(
+        '◆ 페이지 "' + String(it.title).slice(0, 100) + '" (ID: ' + String(it.id || '').slice(0, 40) + ')\n' +
+        it.content.slice(0, 3000)
+      );
+    } else if (it.kind === 'search' && Array.isArray(it.results)) {
+      const lines = it.results.slice(0, 5).map(
+        (r) => '- ' + String((r && r.title) || '').slice(0, 80) + ' (ID: ' + String((r && r.id) || '').slice(0, 40) + ')'
+      );
+      out.push('◆ 검색 "' + String(it.query || '').slice(0, 60) + '" 결과\n' + (lines.join('\n') || '(결과 없음)'));
+    }
+  }
+  if (!out.length) return null;
+  return (
+    '\n\n[노션 조회 결과 — 시스템이 방금 노션에서 가져온 실제 데이터]\n' +
+    out.join('\n\n').slice(0, 8000) +
+    '\n위 내용을 근거로 답하고, 해당 페이지에 추가·수정·삭제 태그를 쓸 때는 위 ID를 대상으로 정확히 써.'
+  );
+}
+
 const CTRL = String.fromCharCode(0); /* NUL frame for control headers */
 
 /* per-turn token/search usage → joker_usage row (best-effort) */
@@ -296,6 +502,39 @@ const IMAGE_TAG_RE =
 const COWORK_TAG_RE =
   /\[\[\s*코워크\s*:\s*([\s\S]{1,1000}?)\s*\]\]/;
 
+/* Notion page-operation tags — target is a page id/URL or an exact title */
+const NOTION_SEARCH_TAG_RE =
+  /\[\[\s*노션검색\s*:\s*([^\]|]{1,100}?)\s*\]\]/;
+const NOTION_READ_TAG_RE =
+  /\[\[\s*노션읽기\s*:\s*([^\]|]{1,200}?)\s*\]\]/;
+const NOTION_APPEND_TAG_RE =
+  /\[\[\s*노션추가\s*:\s*([^\]|]{1,200}?)\s*\|\s*([\s\S]{1,1500}?)\s*\]\]/;
+const NOTION_UPDATE_TAG_RE =
+  /\[\[\s*노션수정\s*:\s*([^\]|]{1,200}?)\s*\|\s*([\s\S]{1,1500}?)\s*\]\]/;
+const NOTION_DELETE_TAG_RE =
+  /\[\[\s*노션삭제\s*:\s*([^\]|]{1,200}?)\s*\]\]/;
+
+/* One [[...]] tag → action object, or null (mirrors api/_lib/core.js) */
+function parseActionTag(tag) {
+  let m;
+  if ((m = tag.match(ACTION_TAG_RE))) {
+    return {
+      kind: m[1] === '일정' ? 'event' : 'reminder',
+      date: m[2], time: m[3].padStart(5, '0'), title: m[4].trim(),
+    };
+  }
+  if ((m = tag.match(NOTION_TAG_RE))) return { kind: 'notion', title: m[1].trim(), content: m[2].trim() };
+  if ((m = tag.match(NOTION_SEARCH_TAG_RE))) return { kind: 'notion_search', query: m[1].trim() };
+  if ((m = tag.match(NOTION_READ_TAG_RE))) return { kind: 'notion_read', target: m[1].trim() };
+  if ((m = tag.match(NOTION_APPEND_TAG_RE))) return { kind: 'notion_append', target: m[1].trim(), content: m[2].trim() };
+  if ((m = tag.match(NOTION_UPDATE_TAG_RE))) return { kind: 'notion_update', target: m[1].trim(), content: m[2].trim() };
+  if ((m = tag.match(NOTION_DELETE_TAG_RE))) return { kind: 'notion_delete', target: m[1].trim() };
+  if ((m = tag.match(PDF_TAG_RE))) return { kind: 'pdf', title: m[1].trim(), content: m[2].trim() };
+  if ((m = tag.match(IMAGE_TAG_RE))) return { kind: 'image', prompt: m[1].trim() };
+  if ((m = tag.match(COWORK_TAG_RE))) return { kind: 'cowork', request: m[1].trim() };
+  return null;
+}
+
 function createDeptTagFilter(writeText, writeHeader, onAction) {
   let buf = '';
   let deptDone = false;
@@ -321,28 +560,10 @@ function createDeptTagFilter(writeText, writeHeader, onAction) {
         break;
       }
       const tag = s.slice(start, end + 2);
-      const m = tag.match(ACTION_TAG_RE);
-      const n = m ? null : tag.match(NOTION_TAG_RE);
-      const p = m || n ? null : tag.match(PDF_TAG_RE);
-      const g = m || n || p ? null : tag.match(IMAGE_TAG_RE);
-      const w = m || n || p || g ? null : tag.match(COWORK_TAG_RE);
+      const action = parseActionTag(tag);
       s = s.slice(end + 2);
-      if (m || n || p || g || w) {
-        const action = m
-          ? {
-              kind: m[1] === '일정' ? 'event' : 'reminder',
-              date: m[2],
-              time: m[3].padStart(5, '0'),
-              title: m[4].trim(),
-            }
-          : n
-          ? { kind: 'notion', title: n[1].trim(), content: n[2].trim() }
-          : p
-          ? { kind: 'pdf', title: p[1].trim(), content: p[2].trim() }
-          : g
-          ? { kind: 'image', prompt: g[1].trim() }
-          : { kind: 'cowork', request: w[1].trim() };
-        if (m || p || g || w) writeHeader('\u0000action:' + JSON.stringify(action) + '\u0000');
+      if (action) {
+        if (action.kind.indexOf('notion') !== 0) writeHeader('\u0000action:' + JSON.stringify(action) + '\u0000');
         if (onAction) { try { onAction(action); } catch (_) {} }
         if (s.charAt(0) === '\n') s = s.slice(1);
         while (out.length && (out.endsWith(' ') || out.endsWith('\n'))) out = out.slice(0, -1);
@@ -478,7 +699,7 @@ export default async function handler(request) {
         stream: true,
         thinking: { type: 'adaptive' },
         output_config: { effort: 'medium' },
-        system: SYSTEM_PROMPT + buildTimeBlock() + (knowledgeBlock || '') + (skillBlock || '') + (buildEventsBlock(body.events) || ''),
+        system: SYSTEM_PROMPT + buildTimeBlock() + (knowledgeBlock || '') + (skillBlock || '') + (buildEventsBlock(body.events) || '') + (buildNotionBlock(body.notion) || ''),
         tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 }],
         messages: toApiMessages(history, validateImage(body.image)),
       }),
@@ -516,6 +737,10 @@ export default async function handler(request) {
               pendingWrites.push(saveNotion(action).then((result) => {
                 controller.enqueue(encoder.encode(CTRL + 'action:' + JSON.stringify(result) + CTRL));
               }).catch((e) => console.error('[joker edge] notion', e)));
+            } else if (action.kind.indexOf('notion_') === 0) {
+              pendingWrites.push(runNotionOp(action).then((result) => {
+                controller.enqueue(encoder.encode(CTRL + 'action:' + JSON.stringify(result) + CTRL));
+              }).catch((e) => console.error('[joker edge] notion op', e)));
             } else if (action.kind === 'cowork') {
               pendingWrites.push(saveTask(action.request));
             } else if (action.kind === 'event' || action.kind === 'reminder') {

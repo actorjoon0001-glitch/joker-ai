@@ -104,6 +104,13 @@
     let busy = false;
     let backendAvailable = location.protocol !== 'file:';
     const history = []; /* {role: 'user'|'assistant', content: string} */
+    /* recent Notion read/search results — sent with the next requests so the
+       model can quote page contents and target ops at exact page ids */
+    const notionCtx = [];
+    function rememberNotion(entry) {
+      notionCtx.push(entry);
+      while (notionCtx.length > 4) notionCtx.shift();
+    }
 
     const scrollDown = () => chat.scrollTo({ top: chat.scrollHeight, behavior: 'smooth' });
 
@@ -342,6 +349,7 @@
             knowledge: window.JokerKnowledge ? window.JokerKnowledge.get() : null,
             skills: activeSkills,
             events: window.JokerEvents ? window.JokerEvents.list() : undefined,
+            notion: notionCtx.length ? notionCtx.slice(-2) : undefined,
             image: image ? { media_type: image.media_type, data: image.data } : undefined,
           }),
           signal: ctrl.signal,
@@ -536,8 +544,189 @@
       }
     }
 
+    /* programmatic user turn — used by notion candidate/confirm cards */
+    function sendText(text) {
+      if (busy) return;
+      input.value = text;
+      handleSend();
+    }
+
+    /* candidate page list (search results / ambiguous title) — clicking a page
+       sends the choice (with its id) back to Joker as a user message */
+    function addNotionCandidates(info, list) {
+      const wrap = document.createElement('div');
+      wrap.className = 'notion-list';
+      for (const r of (list || []).slice(0, 5)) {
+        if (!r || !r.id) continue;
+        const b = document.createElement('a');
+        b.href = '#';
+        b.textContent = r.title || '(제목 없음)';
+        b.addEventListener('click', (e) => {
+          e.preventDefault();
+          sendText('"' + (r.title || '') + '" 페이지(노션ID: ' + r.id + ')로 진행해줘.');
+        });
+        wrap.appendChild(b);
+      }
+      info.appendChild(wrap);
+    }
+
+    const NOTION_OP_LABEL = {
+      notion_search: '🔎 노션 검색',
+      notion_read: '📖 노션 읽기',
+      notion_append: '📝 노션에 추가',
+      notion_update: '📝 노션 수정',
+      notion_delete: '🗑 노션 삭제',
+    };
+
+    function renderNotionOp(el, info, kindEl, titleEl, a) {
+      const label = NOTION_OP_LABEL[a.kind] || '📝 노션';
+      const note = (t) => {
+        const s = document.createElement('span');
+        s.className = 'when';
+        s.textContent = t;
+        info.appendChild(s);
+      };
+      const link = (url, text) => {
+        if (!url) return;
+        const l = document.createElement('a');
+        l.href = url;
+        l.target = '_blank';
+        l.rel = 'noopener';
+        l.textContent = text || '노션에서 열기';
+        el.appendChild(l);
+      };
+
+      if (a.status === 'not_configured') {
+        el.classList.add('warn');
+        kindEl.textContent = label + ' — 연동 대기';
+        titleEl.textContent = a.title || '';
+        note('넷리파이에 NOTION_API_KEY 설정이 필요해요');
+        return;
+      }
+      if (a.status === 'not_found') {
+        el.classList.add('warn');
+        kindEl.textContent = label + ' — 페이지를 못 찾음';
+        titleEl.textContent = a.title || '';
+        note('제목을 다시 확인하거나 검색을 요청해보세요');
+        return;
+      }
+      if (a.status === 'choose') {
+        el.classList.add('warn');
+        kindEl.textContent = label + ' — 어떤 페이지인가요?';
+        titleEl.textContent = a.title || '';
+        note('같은 제목의 페이지가 여러 개예요. 하나를 골라주세요.');
+        addNotionCandidates(info, a.candidates);
+        return;
+      }
+      if (a.status === 'error' || !a.status) {
+        el.classList.add('warn');
+        kindEl.textContent = label + ' 실패';
+        titleEl.textContent = a.title || '';
+        note('잠시 후 다시 시도해주세요');
+        return;
+      }
+
+      if (a.kind === 'notion_search') {
+        kindEl.textContent = '🔎 노션 검색 결과';
+        titleEl.textContent = '"' + (a.query || '') + '"';
+        if (!a.results || !a.results.length) {
+          el.classList.add('warn');
+          note('검색 결과가 없어요');
+        } else {
+          note('페이지를 고르면 조커가 이어서 처리해요');
+          addNotionCandidates(info, a.results);
+        }
+        rememberNotion({
+          kind: 'search',
+          query: a.query || '',
+          results: (a.results || []).map((r) => ({ id: r.id, title: r.title })),
+        });
+        return;
+      }
+      if (a.kind === 'notion_read') {
+        kindEl.textContent = '📖 노션 페이지 읽음';
+        titleEl.textContent = (a.page && a.page.title) || '';
+        note('내용을 가져왔어요 — 이어서 물어보시면 참고해서 답해요');
+        link(a.page && a.page.url);
+        rememberNotion({
+          kind: 'read',
+          id: (a.page && a.page.id) || '',
+          title: (a.page && a.page.title) || '',
+          content: a.content || '',
+        });
+        return;
+      }
+      if (a.kind === 'notion_append') {
+        kindEl.textContent = '📝 노션에 추가됨';
+        titleEl.textContent = (a.page && a.page.title) || '';
+        link(a.page && a.page.url);
+        return;
+      }
+      if (a.kind === 'notion_update') {
+        if (a.status === 'too_big') {
+          el.classList.add('warn');
+          kindEl.textContent = '📝 노션 수정 보류';
+          titleEl.textContent = (a.page && a.page.title) || '';
+          note('페이지가 커서(30블록 초과) 통째 수정은 위험해요 — 내용 추가를 써주세요');
+          return;
+        }
+        kindEl.textContent = '📝 노션 페이지 수정됨';
+        titleEl.textContent = (a.page && a.page.title) || '';
+        link(a.page && a.page.url);
+        return;
+      }
+      if (a.kind === 'notion_delete') {
+        /* the server never deletes on its own — this card is the only path to
+           the archive call, one page at a time, after an explicit click */
+        el.classList.add('warn');
+        kindEl.textContent = '🗑 삭제 확인 필요';
+        titleEl.textContent = (a.page && a.page.title) || '';
+        note('이 페이지를 삭제합니다. 맞습니까? 노션 휴지통으로 이동하며 복구할 수 있어요.');
+        const ok = document.createElement('a');
+        ok.href = '#';
+        ok.className = 'danger';
+        ok.textContent = '삭제 확인';
+        const cancel = document.createElement('a');
+        cancel.href = '#';
+        cancel.textContent = '취소';
+        ok.addEventListener('click', async (e) => {
+          e.preventDefault();
+          if (ok.dataset.busy) return;
+          ok.dataset.busy = '1';
+          ok.textContent = '삭제 중…';
+          try {
+            const r = await fetch('api/notion', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ op: 'archive', page_id: a.page.id }),
+            });
+            if (!r.ok) throw new Error('archive_' + r.status);
+            kindEl.textContent = '🗑 휴지통으로 이동됨';
+            note('노션 휴지통에서 복구할 수 있어요');
+            ok.remove();
+            cancel.remove();
+          } catch (err) {
+            console.warn('[joker] notion archive:', err);
+            ok.textContent = '실패 — 다시 시도';
+            delete ok.dataset.busy;
+          }
+        });
+        cancel.addEventListener('click', (e) => {
+          e.preventDefault();
+          kindEl.textContent = '🗑 삭제 취소됨';
+          ok.remove();
+          cancel.remove();
+        });
+        el.append(ok, cancel);
+        return;
+      }
+      kindEl.textContent = label;
+      titleEl.textContent = a.title || '';
+    }
+
     function addActionChip(a) {
-      if (!a || (!a.title && !a.prompt && !a.request)) return;
+      if (!a || !a.kind) return;
+      if (a.kind.indexOf('notion_') !== 0 && !a.title && !a.prompt && !a.request) return;
       const el = document.createElement('div');
       el.className = 'action-chip';
       const info = document.createElement('div');
@@ -580,6 +769,8 @@
           setTimeout(() => { btn.textContent = '다운로드'; delete btn.dataset.busy; }, 2000);
         });
         el.appendChild(btn);
+      } else if (a.kind.indexOf('notion_') === 0) {
+        renderNotionOp(el, info, kind, title, a);
       } else if (a.kind === 'notion') {
         if (a.status === 'saved') {
           kind.textContent = '📝 노션에 저장됨';
