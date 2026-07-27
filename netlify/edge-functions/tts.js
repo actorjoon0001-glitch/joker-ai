@@ -4,7 +4,7 @@
    ELEVENLABS_API_KEY is not set so the client falls back to the browser
    voice. */
 
-const VOICE_DEFAULT = 'pNInz6obpgDQGcFmaJgB'; /* "Adam" — deep, playful male */
+const VOICE_DEFAULT = 'cgSgspJ2msm6clMCkdW9'; /* "Jessica" — bright female (상준님 pick) */
 const MODEL_DEFAULT = 'eleven_multilingual_v2';
 
 /* env values saved via the Netlify UI can carry invisible unicode — strip it */

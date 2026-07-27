@@ -4,7 +4,7 @@
    voice. On Netlify this path is served by the edge function instead
    (netlify/edge-functions/tts.js — keep the two in sync). */
 
-const VOICE_DEFAULT = 'pNInz6obpgDQGcFmaJgB'; /* "Adam" — deep, playful male */
+const VOICE_DEFAULT = 'cgSgspJ2msm6clMCkdW9'; /* "Jessica" — bright female (상준님 pick) */
 const MODEL_DEFAULT = 'eleven_multilingual_v2';
 
 export default async function handler(req, res) {
