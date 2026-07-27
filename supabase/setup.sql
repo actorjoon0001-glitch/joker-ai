@@ -19,15 +19,18 @@ create table if not exists joker_messages (
   created_at timestamptz not null default now()
 );
 
--- 일정·리마인더 (조커가 대화 중 등록)
+-- 일정·리마인더 (조커가 대화 중 등록) — end_at이 있으면 기간 일정
 create table if not exists joker_events (
   id bigint generated always as identity primary key,
   kind text not null default 'reminder' check (kind in ('reminder', 'event')),
   title text not null,
   due_at timestamptz not null,
+  end_at timestamptz,
   notified boolean not null default false,
   created_at timestamptz not null default now()
 );
+-- 기존 설치에 기간 일정 컬럼 추가 (재실행해도 안전)
+alter table joker_events add column if not exists end_at timestamptz;
 
 -- API 사용량 집계 (턴별 토큰·검색 수) + 잔액 기준점(kind='base')
 create table if not exists joker_usage (

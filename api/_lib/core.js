@@ -22,7 +22,7 @@ export const SYSTEM_PROMPT = `너는 '조커(Joker)'라는 이름의 개인 AI �
 - 설정 패널(톱니바퀴 버튼): 컴퍼니 메모리(항상 기억할 회사 정보)와 스킬(업무 절차·양식) 등록.
 - 부서 분류: 대화 주제에 따라 화면의 3D 뇌에서 담당 부서 영역이 켜지고 상단에 부서명이 표시됨.
 - 웹 검색: 너는 실시간 웹 검색 도구를 직접 쓸 수 있어(이미 켜져 있음). 최신 정보나 확실하지 않은 사실은 검색해서 근거 있는 답을 하고, 출처는 매체 이름 정도만 자연스럽게 언급해.
-- 일정·리마인더: 상준님이 대화로 부탁하면 네가 직접 등록하고, 시간이 되면 웹페이지가 알림을 띄워줌(웹페이지가 열려 있을 때 확실히 작동). [등록된 일정·리마인더] 블록이 주입되면 그 목록이 현재 등록 상태야.
+- 일정·리마인더: 상준님이 대화로 부탁하면 네가 직접 등록·삭제·변경하고, 휴가처럼 며칠짜리 기간 일정도 띠로 등록할 수 있어. 시간이 되면 웹페이지가 알림을 띄워줌(웹페이지가 열려 있을 때 확실히 작동). [등록된 일정·리마인더] 블록이 주입되면 그 목록이 현재 등록 상태야.
 - 할 일(투두) 관리: 상준님이 "투두에 추가해줘", "할 일 완료 처리해줘" 하면 네가 목록에 등록·완료 처리함. 목록은 왼쪽 퀵 사이드바에 체크박스로 항상 표시되고, 거기서 직접 추가·체크·삭제도 가능.
 - 아침 브리핑: 매일 오전 8시 이후 그날 처음 접속하면 네가 먼저 오늘 일정·밀린 할 일·최근 노션 기록을 모은 브리핑 메시지를 보냄(자동, 설정 불필요). 사이드바의 ☀️ 버튼으로 다시 볼 수도 있음.
 - PDF 문서: 상준님이 "PDF로 줘", "문서로 뽑아줘" 하면 네가 문서를 만들어주고 채팅에 다운로드 카드가 뜸.
@@ -30,7 +30,12 @@ export const SYSTEM_PROMPT = `너는 '조커(Joker)'라는 이름의 개인 AI �
 - 코워크 위임: 자료 조사, 보고서·엑셀 제작, 웹페이지 개발·수정 같은 무거운 작업은 네가 코워크(클라우드 실무 AI)에게 접수해줄 수 있음. 접수하면 코워크가 1시간 이내에 확인해 실행하고, 완료되면 채팅 알림과 노션으로 결과를 돌려줌.
 - 노션 연동: 네가 노션 페이지를 새로 만들 수 있을 뿐 아니라, 기존 페이지를 검색·읽기·내용 이어붙이기·수정·삭제(휴지통 이동, 상준님 확인 필수)까지 할 수 있음. 관리자가 넷리파이 환경변수에 NOTION_API_KEY와 NOTION_PARENT_PAGE_ID를 등록해야 활성화되고, 미등록이면 확인 카드에 설정 안내가 뜸.
 
-일정·리마인더 등록 방법(실제로 작동하는 시스템 명령): 상준님이 일정을 잡거나 알림을 요청하면 답변 본문 맨 끝에 다음 형식의 태그를 정확히 붙여 — [[리마인더:YYYY-MM-DD HH:MM|내용]] 또는 [[일정:YYYY-MM-DD HH:MM|제목]]. '내일 아침 9시', '금요일 2시' 같은 상대 표현은 아래 현재 시각 기준으로 계산하고, 날짜나 시간이 애매하면 태그를 붙이지 말고 먼저 되물어. 이 태그는 시스템이 자동으로 잘라내 저장·알림 처리하고 사용자에게는 확인 카드로 보여주니, 본문에서는 '등록해뒀다'고 짧게 말하면 돼. 등록 요청이 아닐 때는 절대 이 태그를 쓰지 마.
+일정·리마인더 관리 방법(실제로 작동하는 시스템 명령): 캘린더는 네가 등록·기간 등록·삭제·변경까지 전부 다룰 수 있어. 답변 본문 맨 끝에 아래 태그를 정확히 붙여.
+- 등록: [[리마인더:YYYY-MM-DD HH:MM|내용]] 또는 [[일정:YYYY-MM-DD HH:MM|제목]]
+- 기간 일정(휴가·출장처럼 며칠짜리): [[기간일정:YYYY-MM-DD~YYYY-MM-DD|제목]] — 하루씩 쪼개지 말고 반드시 이 태그 하나로 등록해. 캘린더에 띠로 이어져 표시돼.
+- 삭제: [[일정삭제:제목 키워드]] — 키워드와 맞는 일정이 전부 삭제되고 몇 건 지웠는지 카드로 확인돼.
+- 시간 변경: [[일정변경:제목 키워드|YYYY-MM-DD HH:MM]] — 맞는 일정이 하나일 때만 옮겨지고, 여러 개면 카드가 더 구체적으로 말해달라고 해.
+'내일 아침 9시', '금요일 2시' 같은 상대 표현은 아래 현재 시각 기준으로 계산하고, 날짜나 시간이 애매하면 태그를 붙이지 말고 먼저 되물어. 태그는 시스템이 잘라내 처리하고 확인 카드로 보여주니 본문에서는 짧게 말하면 돼. [등록된 일정·리마인더] 블록의 목록을 근거로 어떤 걸 지울지/바꿀지 판단해. 요청이 없을 때는 절대 쓰지 마.
 
 노션 사용 방법(시스템 명령): 노션 페이지를 만들고, 찾고, 읽고, 고치고, 지울 수 있어. 상준님이 요청하면 답변 맨 끝에 아래 태그를 붙여 — 시스템이 잘라내 실행하고 결과를 카드로 보여줘. 한 답변에 노션 태그는 1개만 써.
 - 새 페이지 저장: [[노션:제목|내용]] — 제목은 짧고 명확하게, 내용은 줄바꿈으로 문단을 나눠 800자 이내로 정리해.
@@ -174,6 +179,12 @@ export function buildEventsBlock(events) {
         timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', weekday: 'short',
         hour: '2-digit', minute: '2-digit', hour12: false,
       }).format(d);
+      /* multi-day event → "7월 29일 ~ 7월 31일" */
+      const end = e.end_at ? new Date(e.end_at) : null;
+      if (end && !isNaN(end.getTime())) {
+        const dayFmt = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', month: 'long', day: 'numeric' });
+        when = dayFmt.format(d) + ' ~ ' + dayFmt.format(end);
+      }
     } catch {}
     lines.push('- ' + when + ' ' + (e.kind === 'event' ? '[일정]' : '[리마인더]') + ' ' + e.title.slice(0, 200));
   }
@@ -224,6 +235,16 @@ export function buildSystem(body) {
 export const ACTION_TAG_RE =
   /\[\[\s*(일정|리마인더)\s*:\s*(\d{4}-\d{2}-\d{2})[ T](\d{1,2}:\d{2})\s*\|\s*([^\]|]{1,150}?)\s*\]\]/;
 
+/* [[기간일정:YYYY-MM-DD~YYYY-MM-DD|제목]] — multi-day event (휴가 등) */
+export const RANGE_TAG_RE =
+  /\[\[\s*기간일정\s*:\s*(\d{4}-\d{2}-\d{2})\s*~\s*(\d{4}-\d{2}-\d{2})\s*\|\s*([^\]|]{1,150}?)\s*\]\]/;
+
+/* [[일정삭제:키워드]] / [[일정변경:키워드|YYYY-MM-DD HH:MM]] — calendar edit */
+export const EVENT_DELETE_TAG_RE =
+  /\[\[\s*일정삭제\s*:\s*([^\]|]{1,150}?)\s*\]\]/;
+export const EVENT_MOVE_TAG_RE =
+  /\[\[\s*일정변경\s*:\s*([^\]|]{1,150}?)\s*\|\s*(\d{4}-\d{2}-\d{2})[ T](\d{1,2}:\d{2})\s*\]\]/;
+
 /* [[노션:제목|내용]] — save-to-Notion action tag (content may span lines) */
 export const NOTION_TAG_RE =
   /\[\[\s*노션\s*:\s*([^\]|]{1,100}?)\s*\|\s*([\s\S]{1,1500}?)\s*\]\]/;
@@ -268,6 +289,11 @@ export function parseActionTag(tag) {
       kind: m[1] === '일정' ? 'event' : 'reminder',
       date: m[2], time: m[3].padStart(5, '0'), title: m[4].trim(),
     };
+  }
+  if ((m = tag.match(RANGE_TAG_RE))) return { kind: 'event_range', start: m[1], end: m[2], title: m[3].trim() };
+  if ((m = tag.match(EVENT_DELETE_TAG_RE))) return { kind: 'event_delete', title: m[1].trim() };
+  if ((m = tag.match(EVENT_MOVE_TAG_RE))) {
+    return { kind: 'event_move', title: m[1].trim(), date: m[2], time: m[3].padStart(5, '0') };
   }
   if ((m = tag.match(NOTION_TAG_RE))) return { kind: 'notion', title: m[1].trim(), content: m[2].trim() };
   if ((m = tag.match(NOTION_SEARCH_TAG_RE))) return { kind: 'notion_search', query: m[1].trim() };
@@ -317,10 +343,12 @@ export function createDeptTagFilter(writeText, writeHeader, onAction) {
       const action = parseActionTag(tag);
       s = s.slice(end + 2);
       if (action) {
-        /* schedule/pdf/image/cowork/todo-add tags get their header
-           immediately; notion ops and todo-complete write their result
-           header once the API call resolves */
-        if (action.kind.indexOf('notion') !== 0 && action.kind !== 'todo_done') writeHeader('\u0000action:' + JSON.stringify(action) + '\u0000');
+        /* most tags get their header immediately; ops whose outcome the card
+           must show (notion ops, todo-complete, event delete/move) write the
+           result header once the API call resolves */
+        const deferred = action.kind.indexOf('notion') === 0 ||
+          action.kind === 'todo_done' || action.kind === 'event_delete' || action.kind === 'event_move';
+        if (!deferred) writeHeader('\u0000action:' + JSON.stringify(action) + '\u0000');
         if (onAction) { try { onAction(action); } catch {} }
         if (s.charAt(0) === '\n') s = s.slice(1); /* swallow the tag's line break */
         while (out.length && (out.endsWith(' ') || out.endsWith('\n'))) out = out.slice(0, -1);

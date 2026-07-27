@@ -242,14 +242,32 @@
   /* ── 미니 달력 (사이드바 상주) ── */
   let calView = null; /* {y, m} 1-based */
 
+  /* 기간 일정(end_at)은 시작~끝의 모든 날짜 키로 펼친다 (최대 62일) */
+  function dayKeysBetween(startIso, endIso) {
+    const keys = [];
+    const start = new Date(startIso);
+    if (isNaN(start.getTime())) return keys;
+    const startKey = KST_DATE.format(start);
+    const end = endIso ? new Date(endIso) : null;
+    const endKey = end && !isNaN(end.getTime()) ? KST_DATE.format(end) : startKey;
+    let [y, m, d] = startKey.split('-').map(Number);
+    for (let i = 0; i < 62; i++) {
+      const key = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      keys.push(key);
+      if (key === endKey) break;
+      const next = new Date(Date.UTC(y, m - 1, d + 1));
+      y = next.getUTCFullYear(); m = next.getUTCMonth() + 1; d = next.getUTCDate();
+    }
+    return keys;
+  }
+
   function eventsByDay() {
     const map = {};
     for (const e of (window.JokerEvents && window.JokerEvents.list()) || []) {
       if (!e || !e.title || !e.due_at) continue;
-      const d = new Date(e.due_at);
-      if (isNaN(d.getTime())) continue;
-      const key = KST_DATE.format(d);
-      (map[key] = map[key] || []).push(e);
+      for (const key of dayKeysBetween(e.due_at, e.end_at)) {
+        (map[key] = map[key] || []).push(e);
+      }
     }
     return map;
   }
@@ -282,6 +300,8 @@
       cell.textContent = d;
       const items = byDay[key] || [];
       if (items.length) {
+        /* 기간 일정이 걸친 날은 배경 띠로 이어져 보이게 */
+        if (items.some((e) => e.end_at)) cell.classList.add('range');
         const dots = document.createElement('span');
         dots.className = 'dots';
         for (const e of items.slice(0, 3)) {
@@ -334,7 +354,12 @@
       const t = document.createElement('b');
       t.textContent = e.title;
       const when = document.createElement('span');
-      try { when.textContent = SHORT_FMT.format(new Date(e.due_at)); } catch {}
+      try {
+        when.textContent = e.end_at
+          ? KST_DATE.format(new Date(e.due_at)).slice(5).replace('-', '/') +
+            ' ~ ' + KST_DATE.format(new Date(e.end_at)).slice(5).replace('-', '/')
+          : SHORT_FMT.format(new Date(e.due_at));
+      } catch {}
       body.append(t, when);
       row.append(ico, body);
       row.addEventListener('click', () => {

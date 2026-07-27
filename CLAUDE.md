@@ -47,6 +47,11 @@
 - js/reminders.js가 /api/events를 폴링해 기한 도래 시 말풍선·음성·브라우저
   알림을 울리고, js/calendar.js가 사이트 내 월별 캘린더 패널(헤더 📅 버튼)을
   그린다. 웹 검색은 Anthropic 서버측 web_search 도구로 켜져 있다.
+- 캘린더 조작 태그: [[기간일정:YYYY-MM-DD~YYYY-MM-DD|제목]](joker_events.end_at,
+  due 시작일 09:00·end 종료일 18:00, 미니/큰 캘린더가 날짜별로 펼쳐 띠 표시),
+  [[일정삭제:키워드]](ilike 매칭 전부 삭제, 최대 10건, count 카드),
+  [[일정변경:키워드|일시]](정확히 1건일 때만 이동+notified 리셋, 다건이면
+  multiple 카드). 두 챗 백엔드 동일 구현, 결과는 삭제·변경만 지연 헤더.
 - 할 일(투두): joker_todos 테이블(setup.sql), /api/todos(api/todos.js,
   GET 목록·POST add/done/undone/delete). 모델 태그 [[투두:내용]](즉시 등록)과
   [[투두완료:키워드]](ilike 매칭 후 결과 카드, ok/not_found)를 두 챗 백엔드가

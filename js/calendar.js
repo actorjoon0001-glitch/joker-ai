@@ -29,14 +29,31 @@
     return isNaN(d.getTime()) ? null : KST_DATE.format(d);
   };
 
+  /* 기간 일정(end_at)은 시작~끝의 모든 날짜 키로 펼친다 (최대 62일) */
+  function dayKeysBetween(startIso, endIso) {
+    const keys = [];
+    const startKey = dateKey(startIso);
+    if (!startKey) return keys;
+    const endKey = (endIso && dateKey(endIso)) || startKey;
+    let [y, m, d] = startKey.split('-').map(Number);
+    for (let i = 0; i < 62; i++) {
+      const key = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      keys.push(key);
+      if (key === endKey) break;
+      const next = new Date(Date.UTC(y, m - 1, d + 1));
+      y = next.getUTCFullYear(); m = next.getUTCMonth() + 1; d = next.getUTCDate();
+    }
+    return keys;
+  }
+
   function eventsByDay() {
     const map = {};
     const list = window.JokerEvents ? window.JokerEvents.list() : [];
     for (const e of list) {
       if (!e || !e.title) continue;
-      const key = dateKey(e.due_at);
-      if (!key) continue;
-      (map[key] = map[key] || []).push(e);
+      for (const key of dayKeysBetween(e.due_at, e.end_at)) {
+        (map[key] = map[key] || []).push(e);
+      }
     }
     for (const key of Object.keys(map)) {
       map[key].sort((a, b) => new Date(a.due_at) - new Date(b.due_at));
@@ -106,7 +123,10 @@
         const t = document.createElement('b');
         t.textContent = e.title;
         const when = document.createElement('span');
-        when.textContent = KST_TIME.format(new Date(e.due_at));
+        when.textContent = e.end_at
+          ? '기간 일정 (' + KST_DATE.format(new Date(e.due_at)).slice(5).replace('-', '/') +
+            ' ~ ' + KST_DATE.format(new Date(e.end_at)).slice(5).replace('-', '/') + ')'
+          : KST_TIME.format(new Date(e.due_at));
         body.append(t, when);
         const del = document.createElement('button');
         del.className = 'del';
