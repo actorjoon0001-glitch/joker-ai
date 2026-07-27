@@ -42,10 +42,14 @@ export default async function handler(req, res) {
       const kind = b.kind === 'event' ? 'event' : 'reminder';
       const due = new Date(b.due_at || '');
       if (!title || isNaN(due.getTime())) { res.status(400).json({ error: 'invalid_event' }); return; }
+      const row = { title, kind, due_at: due.toISOString() };
+      /* 기간 일정: end_at이 due_at 이후일 때만 저장 */
+      const end = b.end_at ? new Date(b.end_at) : null;
+      if (end && !isNaN(end.getTime()) && end >= due) row.end_at = end.toISOString();
       const r = await sb('joker_events', {
         method: 'POST',
         headers: { Prefer: 'return=representation' },
-        body: JSON.stringify({ title, kind, due_at: due.toISOString() }),
+        body: JSON.stringify(row),
       });
       if (isDbNotReady(r.status)) { res.status(503).json({ error: 'db_not_ready' }); return; }
       if (!r.ok) { res.status(502).json({ error: 'db_error' }); return; }

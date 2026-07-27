@@ -77,6 +77,71 @@ async function saveEvent(action) {
   if (!r.ok) console.error('[joker api] event save failed', r.status);
 }
 
+/* [[기간일정:시작~끝|제목]] → 기간 일정 row (best-effort) */
+async function saveRangeEvent(action) {
+  const dueAt = `${action.start}T09:00:00+09:00`;
+  const endAt = `${action.end}T18:00:00+09:00`;
+  if (isNaN(new Date(dueAt).getTime()) || isNaN(new Date(endAt).getTime())) return;
+  if (new Date(endAt) < new Date(dueAt)) return;
+  const r = await sb('joker_events', {
+    method: 'POST',
+    body: JSON.stringify({ kind: 'event', title: action.title, due_at: dueAt, end_at: endAt }),
+  });
+  if (!r.ok) console.error('[joker api] range event save failed', r.status);
+}
+
+/* [[일정삭제:키워드]] → 키워드와 맞는 일정 전부 삭제(최대 10건); 결과 카드 */
+async function deleteEvents(keyword) {
+  try {
+    const kw = String(keyword).replace(/[%*]/g, '').trim().slice(0, 100);
+    if (!kw) return { kind: 'event_delete', title: String(keyword), status: 'not_found' };
+    const since = new Date(Date.now() - 60 * 24 * 3600 * 1000).toISOString();
+    const q = await sb(
+      `joker_events?select=id,title&due_at=gte.${encodeURIComponent(since)}` +
+      `&title=ilike.${encodeURIComponent('*' + kw + '*')}&order=due_at.asc&limit=10`
+    );
+    if (!q.ok) return { kind: 'event_delete', title: kw, status: 'error' };
+    const rows = await q.json().catch(() => []);
+    if (!rows.length) return { kind: 'event_delete', title: kw, status: 'not_found' };
+    const ids = rows.map((r) => r.id).join(',');
+    const r = await sb(`joker_events?id=in.(${ids})`, { method: 'DELETE' });
+    if (!r.ok) return { kind: 'event_delete', title: kw, status: 'error' };
+    return { kind: 'event_delete', title: rows[0].title, status: 'ok', count: rows.length };
+  } catch (err) {
+    console.error('[joker api] event delete', err);
+    return { kind: 'event_delete', title: String(keyword), status: 'error' };
+  }
+}
+
+/* [[일정변경:키워드|일시]] → 정확히 1건일 때만 시간 이동; 결과 카드 */
+async function moveEvent(action) {
+  try {
+    const kw = String(action.title).replace(/[%*]/g, '').trim().slice(0, 100);
+    const dueAt = `${action.date}T${action.time}:00+09:00`;
+    if (!kw || isNaN(new Date(dueAt).getTime())) {
+      return { kind: 'event_move', title: String(action.title), status: 'not_found' };
+    }
+    const since = new Date(Date.now() - 60 * 24 * 3600 * 1000).toISOString();
+    const q = await sb(
+      `joker_events?select=id,title&due_at=gte.${encodeURIComponent(since)}` +
+      `&title=ilike.${encodeURIComponent('*' + kw + '*')}&order=due_at.asc&limit=2`
+    );
+    if (!q.ok) return { kind: 'event_move', title: kw, status: 'error' };
+    const rows = await q.json().catch(() => []);
+    if (!rows.length) return { kind: 'event_move', title: kw, status: 'not_found' };
+    if (rows.length > 1) return { kind: 'event_move', title: kw, status: 'multiple' };
+    const r = await sb(`joker_events?id=eq.${rows[0].id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ due_at: dueAt, notified: false }),
+    });
+    if (!r.ok) return { kind: 'event_move', title: rows[0].title, status: 'error' };
+    return { kind: 'event_move', title: rows[0].title, status: 'ok', date: action.date, time: action.time };
+  } catch (err) {
+    console.error('[joker api] event move', err);
+    return { kind: 'event_move', title: String(action.title), status: 'error' };
+  }
+}
+
 /* [[노션:제목|내용]] tag → Notion page; returns the result the client renders */
 async function saveNotion(action) {
   const key = process.env.NOTION_API_KEY;
@@ -240,6 +305,18 @@ export default async function handler(req, res) {
           pendingWrites.push(saveTask(action.request));
         } else if (action.kind === 'event' || action.kind === 'reminder') {
           pendingWrites.push(saveEvent(action).catch((e) => console.error('[joker api] event', e)));
+        } else if (action.kind === 'event_range') {
+          pendingWrites.push(saveRangeEvent(action).catch((e) => console.error('[joker api] range', e)));
+        } else if (action.kind === 'event_delete') {
+          pendingWrites.push(deleteEvents(action.title).then((result) => {
+            ensureHeaders();
+            res.write(CTRL + 'action:' + JSON.stringify(result) + CTRL);
+          }).catch((e) => console.error('[joker api] event delete', e)));
+        } else if (action.kind === 'event_move') {
+          pendingWrites.push(moveEvent(action).then((result) => {
+            ensureHeaders();
+            res.write(CTRL + 'action:' + JSON.stringify(result) + CTRL);
+          }).catch((e) => console.error('[joker api] event move', e)));
         }
       },
     );

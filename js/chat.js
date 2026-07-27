@@ -769,6 +769,57 @@
           setTimeout(() => { btn.textContent = '다운로드'; delete btn.dataset.busy; }, 2000);
         });
         el.appendChild(btn);
+      } else if (a.kind === 'event_range' || a.kind === 'event_delete' || a.kind === 'event_move') {
+        const note = (t) => {
+          const s = document.createElement('span');
+          s.className = 'when';
+          s.textContent = t;
+          info.appendChild(s);
+        };
+        const calBtn = (dateStr) => {
+          const b = document.createElement('a');
+          b.href = '#';
+          b.textContent = '캘린더 보기';
+          b.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (window.JokerCalendar) window.JokerCalendar.open(dateStr);
+          });
+          el.appendChild(b);
+        };
+        if (a.kind === 'event_range') {
+          kind.textContent = '📅 기간 일정 등록됨';
+          note(formatWhen(a.start, '').replace(/\s+$/, '') + ' ~ ' + formatWhen(a.end, '').replace(/\s+$/, ''));
+          calBtn(a.start);
+        } else if (a.kind === 'event_delete') {
+          if (a.status === 'ok') {
+            kind.textContent = '🗑 일정 삭제됨';
+            if (a.count > 1) note(a.count + '건이 함께 삭제됐어요');
+          } else {
+            el.classList.add('warn');
+            kind.textContent = '🗑 삭제할 일정을 못 찾았어요';
+            note('캘린더의 일정 이름으로 다시 말해주세요');
+          }
+        } else {
+          if (a.status === 'ok') {
+            kind.textContent = '📅 일정 시간 변경됨';
+            note(formatWhen(a.date, a.time) + ' 으로 이동');
+            calBtn(a.date);
+          } else if (a.status === 'multiple') {
+            el.classList.add('warn');
+            kind.textContent = '📅 일정 변경 보류';
+            note('같은 이름의 일정이 여러 개예요. 더 구체적으로 말해주세요');
+          } else {
+            el.classList.add('warn');
+            kind.textContent = '📅 변경할 일정을 못 찾았어요';
+            note('캘린더의 일정 이름으로 다시 말해주세요');
+          }
+        }
+        if (window.JokerSidebar) {
+          setTimeout(() => {
+            window.JokerSidebar.renderMiniCal();
+            window.JokerSidebar.renderEvents();
+          }, 2500);
+        }
       } else if (a.kind === 'todo' || a.kind === 'todo_done') {
         if (a.kind === 'todo') {
           kind.textContent = '☑️ 할 일 등록됨';
