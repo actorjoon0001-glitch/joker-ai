@@ -1000,6 +1000,75 @@
   .notion-item .confirm button.ok:hover { background: rgba(255, 92, 92, 0.1); }
   .sb-event .ico { flex-shrink: 0; font-size: 13px; }
 
+  /* 사이드바 미니 달력 */
+  .sb-cal { margin-bottom: 10px; }
+  .sb-cal-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .sb-cal-nav span {
+    font-family: var(--font-tech);
+    font-size: 11.5px;
+    letter-spacing: 0.12em;
+    color: var(--text);
+  }
+  .sb-cal-nav button {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 0 8px;
+  }
+  .sb-cal-nav button:hover { color: var(--cyan); }
+  .sb-cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+  }
+  .sb-cal-grid .dow {
+    text-align: center;
+    font-size: 9.5px;
+    color: var(--text-dim);
+    padding: 2px 0 4px;
+  }
+  .sb-cal-grid .day {
+    position: relative;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: var(--text);
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .sb-cal-grid .day:hover { border-color: rgba(52, 224, 255, 0.4); background: rgba(52, 224, 255, 0.07); }
+  .sb-cal-grid .day.today {
+    border-color: rgba(52, 224, 255, 0.55);
+    background: rgba(52, 224, 255, 0.1);
+    color: var(--cyan);
+    font-weight: 600;
+  }
+  .sb-cal-grid .day .dots {
+    position: absolute;
+    bottom: 2px;
+    display: flex;
+    gap: 2px;
+  }
+  .sb-cal-grid .day .dots i {
+    width: 3.5px;
+    height: 3.5px;
+    border-radius: 50%;
+    background: var(--green);
+  }
+  .sb-cal-grid .day .dots i.rm { background: #ffb347; }
+
   /* 사이드바가 열리면 본문 컬럼을 오른쪽으로 밀어 채팅이 가려지지 않게 —
      화면이 충분히 넓으면 원래의 중앙 정렬 위치를 그대로 유지한다 */
   .app { transition: margin-left 0.28s cubic-bezier(0.22, 1, 0.36, 1), max-width 0.28s cubic-bezier(0.22, 1, 0.36, 1); }
@@ -1463,8 +1532,16 @@
   </section>
   <section class="sb-sec">
     <div class="sb-sec-head">
-      <h3>📅 다가오는 일정</h3>
-      <button id="sbCalOpen" aria-label="캘린더 열기">달력</button>
+      <h3>📅 일정</h3>
+      <button id="sbCalOpen" aria-label="캘린더 크게 보기">크게</button>
+    </div>
+    <div class="sb-cal" id="sbMiniCal">
+      <div class="sb-cal-nav">
+        <button id="sbCalPrev" aria-label="이전 달">‹</button>
+        <span id="sbCalTitle"></span>
+        <button id="sbCalNext" aria-label="다음 달">›</button>
+      </div>
+      <div class="sb-cal-grid" id="sbCalGrid"></div>
     </div>
     <div class="sb-items" id="sbEventItems"></div>
   </section>

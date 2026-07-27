@@ -57,8 +57,8 @@
   사이드바 ☀️ 버튼 = JokerBrief.run(true) 수동 재생.
 - 왼쪽 퀵 사이드바(js/sidebar.js): 노션 페이지 목록(GET /api/notion?op=list,
   최근 수정순, 제목 클릭=노션 열기, 💬=조커가 읽어오기, 🗑=인라인 삭제/취소
-  확인 후 POST /api/notion archive로 휴지통 이동)과 다가오는 일정 6건(클릭 시
-  캘린더)을 상시 표시. 열림 상태는 localStorage joker.sidebar.v1에 유지되고
+  확인 후 POST /api/notion archive로 휴지통 이동)과 미니 달력(월 이동,
+  일정 점 표시, 날짜 클릭 시 큰 캘린더) + 다가오는 일정 6건을 상시 표시. 열림 상태는 localStorage joker.sidebar.v1에 유지되고
   첫 방문 시 넓은 화면(≥1280px)에서 자동으로 열린다. 열리면 body.sb-open이
   .app 컬럼을 오른쪽으로 밀어 채팅과 겹치지 않는다(≤900px는 오버레이).
 - 사용량 미터: 두 챗 백엔드가 턴별 토큰·검색 수를 joker_usage에 기록하고
