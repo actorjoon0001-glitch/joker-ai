@@ -937,6 +937,7 @@
     });
 
     window.JokerChat.notify = notify; /* used by js/reminders.js */
+    window.JokerChat.send = sendText; /* used by js/notion.js (list panel) */
 
     /* attach button + file picker */
     if (attachBtn && fileInput) {
