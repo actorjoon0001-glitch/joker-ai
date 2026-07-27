@@ -19,6 +19,10 @@
   const notionItems = document.getElementById('sbNotionItems');
   const calOpenBtn = document.getElementById('sbCalOpen');
   const eventItems = document.getElementById('sbEventItems');
+  const calTitle = document.getElementById('sbCalTitle');
+  const calGrid = document.getElementById('sbCalGrid');
+  const calPrev = document.getElementById('sbCalPrev');
+  const calNext = document.getElementById('sbCalNext');
   const todoItems = document.getElementById('sbTodoItems');
   const todoAddBtn = document.getElementById('sbTodoAddBtn');
   const todoAddWrap = document.getElementById('sbTodoAdd');
@@ -235,6 +239,77 @@
     });
   }
 
+  /* ── 미니 달력 (사이드바 상주) ── */
+  let calView = null; /* {y, m} 1-based */
+
+  function eventsByDay() {
+    const map = {};
+    for (const e of (window.JokerEvents && window.JokerEvents.list()) || []) {
+      if (!e || !e.title || !e.due_at) continue;
+      const d = new Date(e.due_at);
+      if (isNaN(d.getTime())) continue;
+      const key = KST_DATE.format(d);
+      (map[key] = map[key] || []).push(e);
+    }
+    return map;
+  }
+
+  function renderMiniCal() {
+    if (!calGrid || !calTitle) return;
+    if (!calView) {
+      const p = KST_DATE.format(new Date()).split('-').map(Number);
+      calView = { y: p[0], m: p[1] };
+    }
+    const { y, m } = calView;
+    calTitle.textContent = y + '.' + String(m).padStart(2, '0');
+    const byDay = eventsByDay();
+    const today = KST_DATE.format(new Date());
+    const firstDow = new Date(Date.UTC(y, m - 1, 1)).getUTCDay();
+    const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+
+    calGrid.innerHTML = '';
+    for (const w of ['일', '월', '화', '수', '목', '금', '토']) {
+      const h = document.createElement('div');
+      h.className = 'dow';
+      h.textContent = w;
+      calGrid.appendChild(h);
+    }
+    for (let i = 0; i < firstDow; i++) calGrid.appendChild(document.createElement('div'));
+    for (let d = 1; d <= daysInMonth; d++) {
+      const key = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const cell = document.createElement('button');
+      cell.className = 'day' + (key === today ? ' today' : '');
+      cell.textContent = d;
+      const items = byDay[key] || [];
+      if (items.length) {
+        const dots = document.createElement('span');
+        dots.className = 'dots';
+        for (const e of items.slice(0, 3)) {
+          const dot = document.createElement('i');
+          if (e.kind !== 'event') dot.className = 'rm';
+          dots.appendChild(dot);
+        }
+        cell.appendChild(dots);
+      }
+      cell.title = items.length ? items.map((e) => e.title).join(', ') : '';
+      /* 날짜 클릭 → 큰 캘린더를 그 날짜로 열어 상세·삭제까지 */
+      cell.addEventListener('click', () => {
+        if (window.JokerCalendar) window.JokerCalendar.open(key);
+      });
+      calGrid.appendChild(cell);
+    }
+  }
+
+  function shiftCal(delta) {
+    if (!calView) return;
+    let { y, m } = calView;
+    m += delta;
+    if (m < 1) { m = 12; y--; }
+    if (m > 12) { m = 1; y++; }
+    calView = { y, m };
+    renderMiniCal();
+  }
+
   /* ── ② upcoming events ── */
   function renderEvents() {
     const list = (window.JokerEvents && window.JokerEvents.list()) || [];
@@ -280,11 +355,14 @@
     try { localStorage.setItem(OPEN_KEY, '1'); } catch {}
     refreshNotion();
     refreshTodos();
+    renderMiniCal();
     renderEvents();
     if (!notionTimer) notionTimer = setInterval(refreshNotion, NOTION_REFRESH_MS);
     if (!eventsTimer) {
-      eventsTimer = setInterval(() => { renderEvents(); refreshTodos(); }, EVENTS_REFRESH_MS);
+      eventsTimer = setInterval(() => { renderMiniCal(); renderEvents(); refreshTodos(); }, EVENTS_REFRESH_MS);
     }
+    /* 이벤트 캐시가 늦게 채워지는 첫 로드 직후를 위해 한 번 더 */
+    setTimeout(() => { renderMiniCal(); renderEvents(); }, 2500);
   }
 
   function close() {
@@ -306,6 +384,8 @@
   if (briefBtn) briefBtn.addEventListener('click', () => {
     if (window.JokerBrief) window.JokerBrief.run(true);
   });
+  if (calPrev) calPrev.addEventListener('click', () => shiftCal(-1));
+  if (calNext) calNext.addEventListener('click', () => shiftCal(1));
 
   /* restore last state; first visit → open automatically on wide screens */
   let saved = null;
@@ -315,5 +395,5 @@
     setTimeout(open, 400);
   }
 
-  window.JokerSidebar = { open, close, refreshNotion, renderEvents, refreshTodos };
+  window.JokerSidebar = { open, close, refreshNotion, renderEvents, refreshTodos, renderMiniCal };
 })();
