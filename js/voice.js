@@ -8,6 +8,29 @@
   'use strict';
 
   const TTS_KEY = 'joker.tts.v1';
+  const RATE_KEY = 'joker.tts.rate.v1';
+  const RATE_MIN = 0.6;
+  const RATE_MAX = 1.6;
+  /* ElevenLabs voice_settings.speed only accepts 0.7–1.2 — the remainder of
+     the user's chosen rate is applied via HTMLAudio playbackRate */
+  const ELEVEN_SPEED_MIN = 0.7;
+  const ELEVEN_SPEED_MAX = 1.2;
+
+  function clampRate(v) {
+    const n = Number(v);
+    if (!isFinite(n)) return 1;
+    return Math.min(RATE_MAX, Math.max(RATE_MIN, n));
+  }
+
+  let ttsRate = 1;
+  try { ttsRate = clampRate(localStorage.getItem(RATE_KEY) || 1); } catch {}
+
+  function getRate() { return ttsRate; }
+  function setRate(v) {
+    ttsRate = clampRate(v);
+    try { localStorage.setItem(RATE_KEY, String(ttsRate)); } catch {}
+    return ttsRate;
+  }
   const micBtn = document.getElementById('micBtn');
   const ttsBtn = document.getElementById('ttsBtn');
   const input = document.getElementById('input');
@@ -42,7 +65,8 @@
     u.lang = 'ko-KR';
     const voice = pickKoreanVoice();
     if (voice) u.voice = voice;
-    u.rate = 1.05;
+    /* 1.05 is the tuned base pace; the user slider scales around it */
+    u.rate = Math.min(2, Math.max(0.5, 1.05 * ttsRate));
     u.pitch = 1.0;
     window.__jokerSpeaking = true; /* keep the wake-word listener deaf to Joker */
     u.onend = () => { window.__jokerSpeaking = false; };
@@ -50,8 +74,8 @@
     synth.speak(u);
   }
 
-  async function speak(text) {
-    if (!ttsOn || !text) return;
+  async function speakText(text, force) {
+    if ((!ttsOn && !force) || !text) return;
     /* strip the blinking-cursor artifacts / trim long pauses */
     const clean = text.replace(/\s+/g, ' ').trim();
     if (!clean) return;
@@ -63,12 +87,21 @@
         const res = await fetch('api/tts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: clean }),
+          body: JSON.stringify({ text: clean, rate: ttsRate }),
         });
         if (res.ok) {
           serverTts = true;
           const url = URL.createObjectURL(await res.blob());
           const el = new Audio(url);
+          /* the server already rendered at the ElevenLabs-supported speed
+             (rate clamped to 0.7–1.2); playbackRate covers what's left so the
+             full 0.6–1.6 slider range works. preservesPitch (default true)
+             keeps the voice from sounding chipmunky. */
+          const serverSpeed = Math.min(ELEVEN_SPEED_MAX, Math.max(ELEVEN_SPEED_MIN, ttsRate));
+          try {
+            el.preservesPitch = true;
+            el.playbackRate = ttsRate / serverSpeed;
+          } catch {}
           audioEl = el;
           window.__jokerSpeaking = true;
           el.onended = () => {
@@ -85,6 +118,10 @@
     }
     speakLocal(clean);
   }
+
+  const speak = (text) => speakText(text, false);
+  /* settings-panel sample playback — works even while the speaker toggle is off */
+  const preview = (text) => speakText(text || '지금 속도로 이렇게 읽어드립니다.', true);
 
   function interrupt() {
     stopAudio();
@@ -182,5 +219,5 @@
   /* warm the voice list (some browsers populate it async) */
   if (synth) synth.getVoices();
 
-  window.JokerVoice = { speak, interrupt };
+  window.JokerVoice = { speak, interrupt, preview, getRate, setRate };
 })();

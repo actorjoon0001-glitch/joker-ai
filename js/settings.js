@@ -75,8 +75,9 @@
   const panes = {
     memory: document.getElementById('paneMemory'),
     skills: document.getElementById('paneSkills'),
+    voice: document.getElementById('paneVoice'),
   };
-  const TITLES = { memory: 'COMPANY MEMORY', skills: 'SKILLS' };
+  const TITLES = { memory: 'COMPANY MEMORY', skills: 'SKILLS', voice: 'VOICE' };
 
   function setTab(name) {
     for (const b of tabBtns) b.classList.toggle('active', b.dataset.tab === name);
@@ -85,9 +86,39 @@
   }
   for (const b of tabBtns) b.addEventListener('click', () => setTab(b.dataset.tab));
 
+  /* ── VOICE tab: speech-rate slider (applies + persists instantly) ── */
+  const rateSlider = document.getElementById('voiceRate');
+  const rateValue = document.getElementById('voiceRateValue');
+  const ratePreview = document.getElementById('voiceRatePreview');
+
+  function rateLabel(r) {
+    const word = r < 0.85 ? '느림' : r <= 1.15 ? '보통' : '빠름';
+    return word + ' (' + r.toFixed(2).replace(/0$/, '') + '×)';
+  }
+
+  function renderRate(r) {
+    if (rateSlider) rateSlider.value = String(r);
+    if (rateValue) rateValue.textContent = rateLabel(r);
+  }
+
+  if (rateSlider) {
+    rateSlider.addEventListener('input', () => {
+      const r = window.JokerVoice
+        ? window.JokerVoice.setRate(rateSlider.value)
+        : Number(rateSlider.value);
+      renderRate(r);
+    });
+  }
+  if (ratePreview) {
+    ratePreview.addEventListener('click', () => {
+      if (window.JokerVoice) window.JokerVoice.preview();
+    });
+  }
+
   function open() {
     companyTa.value = knowledge.company || '';
     for (const ta of deptTas) ta.value = (knowledge.depts || {})[ta.dataset.dept] || '';
+    if (window.JokerVoice) renderRate(window.JokerVoice.getRate());
     if (window.JokerSkills) window.JokerSkills.renderUI(); /* discard unsaved edits */
     panel.hidden = false;
     backdrop.hidden = false;
