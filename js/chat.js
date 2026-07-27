@@ -726,7 +726,7 @@
 
     function addActionChip(a) {
       if (!a || !a.kind) return;
-      if (a.kind.indexOf('notion_') !== 0 && !a.title && !a.prompt && !a.request) return;
+      if (a.kind !== 'sms' && a.kind.indexOf('notion_') !== 0 && !a.title && !a.prompt && !a.request) return;
       const el = document.createElement('div');
       el.className = 'action-chip';
       const info = document.createElement('div');
@@ -769,6 +769,66 @@
           setTimeout(() => { btn.textContent = '다운로드'; delete btn.dataset.busy; }, 2000);
         });
         el.appendChild(btn);
+      } else if (a.kind === 'sms') {
+        /* 서버는 초안만 만들었고, 이 카드의 '전송'을 눌러야만 POST /api/sms
+           (솔라피)로 실제 발송된다 — 한 번에 한 명 */
+        el.classList.add('warn');
+        kind.textContent = '💬 문자 전송 확인';
+        const num = (a.to || '').replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3');
+        title.textContent = num + ' 님에게';
+        const note = document.createElement('span');
+        note.className = 'when';
+        note.textContent = '"' + (a.content || '') + '"';
+        info.appendChild(note);
+        const ok = document.createElement('a');
+        ok.href = '#';
+        ok.className = 'danger';
+        ok.textContent = '전송';
+        const cancel = document.createElement('a');
+        cancel.href = '#';
+        cancel.textContent = '취소';
+        ok.addEventListener('click', async (e) => {
+          e.preventDefault();
+          if (ok.dataset.busy) return;
+          ok.dataset.busy = '1';
+          ok.textContent = '전송 중…';
+          try {
+            const r = await fetch('api/sms', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ to: a.to, text: a.content }),
+            });
+            if (r.status === 501) {
+              el.classList.add('warn');
+              kind.textContent = '💬 문자 연동 대기';
+              note.textContent = '넷리파이에 SOLAPI_API_KEY·SECRET·SENDER 설정이 필요해요';
+              ok.remove();
+              cancel.remove();
+              return;
+            }
+            if (!r.ok) {
+              const j = await r.json().catch(() => ({}));
+              throw new Error(j.detail || 'sms_' + r.status);
+            }
+            el.classList.remove('warn');
+            kind.textContent = '💬 문자 전송됨';
+            ok.remove();
+            cancel.remove();
+          } catch (err) {
+            console.warn('[joker] sms send:', err);
+            ok.textContent = '실패 — 다시 시도';
+            const msg = String(err && err.message || '');
+            if (msg && !/^sms_\d+$/.test(msg)) note.textContent = msg;
+            delete ok.dataset.busy;
+          }
+        });
+        cancel.addEventListener('click', (e) => {
+          e.preventDefault();
+          kind.textContent = '💬 문자 전송 취소됨';
+          ok.remove();
+          cancel.remove();
+        });
+        el.append(ok, cancel);
       } else if (a.kind === 'event_range' || a.kind === 'event_delete' || a.kind === 'event_move') {
         const note = (t) => {
           const s = document.createElement('span');
