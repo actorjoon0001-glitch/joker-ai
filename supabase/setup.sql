@@ -54,6 +54,15 @@ create table if not exists joker_tasks (
   updated_at timestamptz not null default now()
 );
 
+-- 할 일 목록 (조커 태그·사이드바에서 관리)
+create table if not exists joker_todos (
+  id bigint generated always as identity primary key,
+  title text not null,
+  done boolean not null default false,
+  done_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
 -- RLS: publishable(anon) 키로 이 테이블들만 읽기/쓰기 허용
 alter table joker_memory enable row level security;
 alter table joker_messages enable row level security;
@@ -79,4 +88,9 @@ create policy "joker anon memory" on joker_memory
 
 drop policy if exists "joker anon messages" on joker_messages;
 create policy "joker anon messages" on joker_messages
+  for all to anon using (true) with check (true);
+
+alter table joker_todos enable row level security;
+drop policy if exists "joker anon todos" on joker_todos;
+create policy "joker anon todos" on joker_todos
   for all to anon using (true) with check (true);

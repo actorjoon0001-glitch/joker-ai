@@ -769,6 +769,22 @@
           setTimeout(() => { btn.textContent = '다운로드'; delete btn.dataset.busy; }, 2000);
         });
         el.appendChild(btn);
+      } else if (a.kind === 'todo' || a.kind === 'todo_done') {
+        if (a.kind === 'todo') {
+          kind.textContent = '☑️ 할 일 등록됨';
+        } else if (a.status === 'ok') {
+          kind.textContent = '✅ 할 일 완료';
+        } else {
+          el.classList.add('warn');
+          kind.textContent = '☑️ 할 일을 못 찾았어요';
+          const note = document.createElement('span');
+          note.className = 'when';
+          note.textContent = '사이드바 목록의 이름으로 다시 말해주세요';
+          info.appendChild(note);
+        }
+        if (window.JokerSidebar && window.JokerSidebar.refreshTodos) {
+          setTimeout(() => window.JokerSidebar.refreshTodos(), 1200);
+        }
       } else if (a.kind.indexOf('notion_') === 0) {
         renderNotionOp(el, info, kind, title, a);
       } else if (a.kind === 'notion') {

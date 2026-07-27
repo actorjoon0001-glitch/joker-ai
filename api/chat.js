@@ -28,6 +28,44 @@ async function saveTask(request) {
   }
 }
 
+/* [[투두:내용]] tag → joker_todos row (best-effort) */
+async function saveTodo(title) {
+  try {
+    const r = await sb('joker_todos', {
+      method: 'POST',
+      body: JSON.stringify({ title: String(title).slice(0, 200) }),
+    });
+    if (!r.ok) console.error('[joker api] todo save failed', r.status);
+  } catch (err) {
+    console.error('[joker api] todo save', err);
+  }
+}
+
+/* [[투두완료:키워드]] tag → mark the first matching open todo done; returns
+   the result the client renders */
+async function completeTodo(keyword) {
+  try {
+    const kw = String(keyword).replace(/[%*]/g, '').trim().slice(0, 100);
+    if (!kw) return { kind: 'todo_done', title: String(keyword), status: 'not_found' };
+    const q = await sb(
+      `joker_todos?select=id,title&done=eq.false&title=ilike.${encodeURIComponent('*' + kw + '*')}` +
+      '&order=created_at.asc&limit=1'
+    );
+    if (!q.ok) return { kind: 'todo_done', title: kw, status: 'error' };
+    const rows = await q.json().catch(() => []);
+    if (!rows.length) return { kind: 'todo_done', title: kw, status: 'not_found' };
+    const r = await sb(`joker_todos?id=eq.${rows[0].id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ done: true, done_at: new Date().toISOString() }),
+    });
+    if (!r.ok) return { kind: 'todo_done', title: rows[0].title, status: 'error' };
+    return { kind: 'todo_done', title: rows[0].title, status: 'ok' };
+  } catch (err) {
+    console.error('[joker api] todo done', err);
+    return { kind: 'todo_done', title: String(keyword), status: 'error' };
+  }
+}
+
 /* [[일정/리마인더]] tag from the stream → Supabase row (best-effort) */
 async function saveEvent(action) {
   const dueAt = `${action.date}T${action.time}:00+09:00`;
@@ -191,6 +229,13 @@ export default async function handler(req, res) {
             ensureHeaders();
             res.write(CTRL + 'action:' + JSON.stringify(result) + CTRL);
           }).catch((e) => console.error('[joker api] notion op', e)));
+        } else if (action.kind === 'todo') {
+          pendingWrites.push(saveTodo(action.title));
+        } else if (action.kind === 'todo_done') {
+          pendingWrites.push(completeTodo(action.title).then((result) => {
+            ensureHeaders();
+            res.write(CTRL + 'action:' + JSON.stringify(result) + CTRL);
+          }).catch((e) => console.error('[joker api] todo done', e)));
         } else if (action.kind === 'cowork') {
           pendingWrites.push(saveTask(action.request));
         } else if (action.kind === 'event' || action.kind === 'reminder') {
