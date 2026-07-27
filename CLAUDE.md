@@ -23,6 +23,11 @@
 - 음성 답변은 `/api/tts`(api/tts.js, 엣지 사본 netlify/edge-functions/tts.js)가
   일레븐랩스를 프록시한다. ELEVENLABS_API_KEY 미설정 시 501을 반환하고
   프론트(js/voice.js)는 브라우저 내장 speechSynthesis로 폴백한다.
+- TTS 말 속도: 설정 패널 VOICE 탭 슬라이더(0.6~1.6, localStorage
+  joker.tts.rate.v1, 즉시 적용·저장). 내장 음성은 utterance.rate에 곱하고,
+  일레븐랩스는 body.rate → voice_settings.speed(0.7~1.2 클램프, 400이면 speed
+  빼고 1회 재시도) + 잔여분은 audio.playbackRate로 보정해 두 모드 체감 속도를
+  맞춘다. JokerVoice.{getRate,setRate,preview} 노출.
 - 조커의 액션 태그: 모델이 답변에 `[[리마인더/일정:YYYY-MM-DD HH:MM|제목]]` 또는
   `[[노션:제목|내용]]`을 붙이면 스트림 필터(core.js `parseActionTag`·엣지 사본)가
   잘라내 NUL 프레임 `action:` 헤더로 클라이언트에 전달한다. 일정/리마인더는 서버가

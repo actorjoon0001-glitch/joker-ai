@@ -49,19 +49,26 @@ export default async function handler(request) {
     const text = typeof body.text === 'string' ? body.text.trim().slice(0, 3000) : '';
     if (!text) return json(400, { error: 'invalid_text' });
 
+    /* user speech-rate slider (0.6–1.6) → ElevenLabs voice_settings.speed,
+       which only accepts 0.7–1.2; the client covers the rest via playbackRate */
+    const rawRate = Number(body.rate);
+    const speed = isFinite(rawRate) ? Math.min(1.2, Math.max(0.7, rawRate)) : 1;
+
     const voice = getEnv('ELEVENLABS_VOICE_ID') || VOICE_DEFAULT;
     const model = getEnv('ELEVENLABS_MODEL') || MODEL_DEFAULT;
     const base = getEnv('ELEVENLABS_BASE_URL') || 'https://api.elevenlabs.io';
 
-    const up = await fetch(base + '/v1/text-to-speech/' + voice + '?output_format=mp3_44100_128', {
-      method: 'POST',
-      headers: { 'xi-api-key': key, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text,
-        model_id: model,
-        voice_settings: { stability: 0.45, similarity_boost: 0.7, style: 0.35 },
-      }),
-    });
+    const call = (settings) =>
+      fetch(base + '/v1/text-to-speech/' + voice + '?output_format=mp3_44100_128', {
+        method: 'POST',
+        headers: { 'xi-api-key': key, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, model_id: model, voice_settings: settings }),
+      });
+
+    const baseSettings = { stability: 0.45, similarity_boost: 0.7, style: 0.35 };
+    let up = await call(speed === 1 ? baseSettings : { ...baseSettings, speed });
+    /* some models reject the speed field — retry once without it */
+    if (!up.ok && up.status === 400 && speed !== 1) up = await call(baseSettings);
     if (!up.ok) return json(502, { error: 'tts_upstream_error', status: up.status });
 
     return new Response(up.body, {

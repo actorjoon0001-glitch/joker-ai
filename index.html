@@ -797,6 +797,50 @@
   }
   .skill-add:hover { border-color: rgba(178, 107, 255, 0.8); background: rgba(178, 107, 255, 0.08); }
 
+  /* VOICE tab — speech-rate slider */
+  .voice-rate {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px;
+    border: 1px solid rgba(52, 224, 255, 0.18);
+    border-radius: 12px;
+    background: rgba(52, 224, 255, 0.04);
+  }
+  .voice-rate label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+  .voice-rate label b { color: var(--cyan); font-weight: 600; font-size: 13.5px; }
+  .voice-rate input[type='range'] {
+    width: 100%;
+    accent-color: #34e0ff;
+    cursor: pointer;
+  }
+  .voice-rate-scale {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.06em;
+  }
+  .voice-rate button {
+    align-self: flex-start;
+    margin-top: 2px;
+    padding: 7px 12px;
+    font-size: 12.5px;
+    color: var(--text);
+    background: none;
+    border: 1px solid rgba(52, 224, 255, 0.3);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .voice-rate button:hover { border-color: rgba(52, 224, 255, 0.6); background: rgba(52, 224, 255, 0.08); }
+
   /* ── in-site calendar panel ── */
   .cal-nav {
     display: flex;
@@ -1173,6 +1217,7 @@
   <div class="settings-tabs" id="settingsTabs">
     <button class="active" data-tab="memory">MEMORY</button>
     <button data-tab="skills">SKILLS</button>
+    <button data-tab="voice">VOICE</button>
   </div>
   <div class="settings-pane" id="paneMemory">
     <p class="settings-desc">조커가 항상 기억할 회사·부서 정보를 적어두세요. 대화할 때 자동으로 참고합니다. 내용은 이 브라우저에 저장됩니다.</p>
@@ -1187,6 +1232,15 @@
     <p class="settings-desc">특정 업무의 절차·양식·톤을 스킬로 등록하세요. 메시지에 발동 키워드가 들어간 대화에서만 그 스킬이 조커에게 전달됩니다. 메모리가 "아는 것"이라면 스킬은 "일하는 방법"입니다.</p>
     <div class="settings-fields" id="skillList"></div>
     <button class="skill-add" id="skillAdd">+ 스킬 추가</button>
+  </div>
+  <div class="settings-pane" id="paneVoice" hidden>
+    <p class="settings-desc">조커가 답변을 읽어주는 말 속도를 조절하세요. 움직이는 즉시 적용·저장되고, 브라우저 내장 음성과 일레븐랩스 음성 모두에 반영됩니다.</p>
+    <div class="voice-rate">
+      <label for="voiceRate">말 속도 <b id="voiceRateValue">보통 (1.0×)</b></label>
+      <input type="range" id="voiceRate" min="0.6" max="1.6" step="0.05" value="1" />
+      <div class="voice-rate-scale"><span>느림</span><span>보통</span><span>빠름</span></div>
+      <button id="voiceRatePreview">🔊 미리 듣기</button>
+    </div>
   </div>
   <button class="settings-save" id="settingsSave">저장</button>
 </aside>
