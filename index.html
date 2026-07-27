@@ -923,9 +923,39 @@
     padding: 3px;
   }
   .notion-item .ask:hover { opacity: 1; }
+  .notion-item .acts { display: flex; align-items: center; gap: 1px; flex-shrink: 0; }
+  .notion-item .confirm { display: none; align-items: center; gap: 5px; flex-shrink: 0; }
+  .notion-item.confirming .acts { display: none; }
+  .notion-item.confirming .confirm { display: flex; }
+  .notion-item.confirming { border-color: rgba(255, 92, 92, 0.45); }
+  .notion-item .confirm button {
+    font-size: 11.5px;
+    padding: 4px 9px;
+    border-radius: 7px;
+    border: 1px solid rgba(160, 176, 196, 0.35);
+    background: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .notion-item .confirm button:hover { border-color: rgba(160, 176, 196, 0.7); }
+  .notion-item .confirm button.ok { color: #ff5c5c; border-color: rgba(255, 92, 92, 0.45); }
+  .notion-item .confirm button.ok:hover { background: rgba(255, 92, 92, 0.1); }
   .sb-event .ico { flex-shrink: 0; font-size: 13px; }
 
-  /* 좁은 화면: 본문 위로 겹쳐 뜨는 오버레이로 동작 */
+  /* 사이드바가 열리면 본문 컬럼을 오른쪽으로 밀어 채팅이 가려지지 않게 —
+     화면이 충분히 넓으면 원래의 중앙 정렬 위치를 그대로 유지한다 */
+  .app { transition: margin-left 0.28s cubic-bezier(0.22, 1, 0.36, 1), max-width 0.28s cubic-bezier(0.22, 1, 0.36, 1); }
+  body.sb-open .app {
+    margin-left: max(300px, calc((100vw - 860px) / 2));
+    margin-right: auto;
+    max-width: min(860px, calc(100vw - 320px));
+  }
+  /* 좁은 화면: 밀 공간이 없으니 오버레이로 겹쳐 뜨고, 닫으면 원래대로 */
+  @media (max-width: 900px) {
+    body.sb-open .app { margin-left: auto; margin-right: auto; max-width: 860px; }
+    .sidebar { width: min(300px, 86vw); box-shadow: 20px 0 60px rgba(0, 0, 0, 0.45); }
+  }
   @media (max-width: 1420px) {
     .sidebar { box-shadow: 20px 0 60px rgba(0, 0, 0, 0.45); }
   }
