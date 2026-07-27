@@ -44,6 +44,11 @@
   띄운다. 사용자가 카드의 "삭제 확인"을 눌러야 클라이언트가 POST /api/notion
   (api/notion.js, op:'archive', 페이지 1개만 허용)을 호출해 노션 휴지통으로
   보낸다(archived:true, 복구 가능). 대량 삭제 경로는 의도적으로 없다.
+- 문자(솔라피): 모델이 [[문자:수신번호|내용]] 태그를 붙이면 채팅에는 전송 확인
+  카드만 뜨고, 사용자가 "전송"을 눌러야 POST /api/sms(api/sms.js)가 솔라피
+  HMAC-SHA256 인증으로 1건 발송한다(수신자 1명 제한). SOLAPI_API_KEY·
+  SOLAPI_API_SECRET·SOLAPI_SENDER(사전 등록 발신번호) 미설정 시 501 →
+  카드에 안내. 채팅 스트림 핸들러는 절대 직접 발송하지 않는다.
 - js/reminders.js가 /api/events를 폴링해 기한 도래 시 말풍선·음성·브라우저
   알림을 울리고, js/calendar.js가 사이트 내 월별 캘린더 패널(헤더 📅 버튼)을
   그린다. 웹 검색은 Anthropic 서버측 web_search 도구로 켜져 있다.

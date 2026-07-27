@@ -15,6 +15,7 @@ import mediaHandler from './api/media.js';
 import tasksHandler from './api/tasks.js';
 import notionHandler from './api/notion.js';
 import todosHandler from './api/todos.js';
+import smsHandler from './api/sms.js';
 
 const API_ROUTES = {
   '/api/chat': chatHandler,
@@ -27,6 +28,7 @@ const API_ROUTES = {
   '/api/tasks': tasksHandler,
   '/api/notion': notionHandler,
   '/api/todos': todosHandler,
+  '/api/sms': smsHandler,
 };
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));

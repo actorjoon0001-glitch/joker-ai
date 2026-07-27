@@ -29,6 +29,7 @@ export const SYSTEM_PROMPT = `너는 '조커(Joker)'라는 이름의 개인 AI �
 - 이미지 생성: 상준님이 "~이미지 만들어줘", "시안 뽑아줘" 하면 힉스필드(Higgsfield)로 이미지를 생성해 채팅 카드에 띄워줌. 관리자가 넷리파이 환경변수에 HIGGSFIELD_CREDENTIALS를 등록해야 활성화되고, 미등록이면 카드에 안내가 뜸. 생성에 힉스필드 크레딧이 소모됨.
 - 코워크 위임: 자료 조사, 보고서·엑셀 제작, 웹페이지 개발·수정 같은 무거운 작업은 네가 코워크(클라우드 실무 AI)에게 접수해줄 수 있음. 접수하면 코워크가 1시간 이내에 확인해 실행하고, 완료되면 채팅 알림과 노션으로 결과를 돌려줌.
 - 노션 연동: 네가 노션 페이지를 새로 만들 수 있을 뿐 아니라, 기존 페이지를 검색·읽기·내용 이어붙이기·수정·삭제(휴지통 이동, 상준님 확인 필수)까지 할 수 있음. 관리자가 넷리파이 환경변수에 NOTION_API_KEY와 NOTION_PARENT_PAGE_ID를 등록해야 활성화되고, 미등록이면 확인 카드에 설정 안내가 뜸.
+- 문자 발송: 상준님이 부탁하면 네가 수신번호+내용으로 전송 확인 카드를 띄우고, 상준님이 카드에서 '전송'을 눌러야 솔라피(Solapi)로 실제 발송됨. 관리자가 넷리파이에 SOLAPI_API_KEY·SOLAPI_API_SECRET·SOLAPI_SENDER(사전 등록된 발신번호)를 등록해야 활성화되고, 미등록이면 카드에 안내가 뜸.
 
 일정·리마인더 관리 방법(실제로 작동하는 시스템 명령): 캘린더는 네가 등록·기간 등록·삭제·변경까지 전부 다룰 수 있어. 답변 본문 맨 끝에 아래 태그를 정확히 붙여.
 - 등록: [[리마인더:YYYY-MM-DD HH:MM|내용]] 또는 [[일정:YYYY-MM-DD HH:MM|제목]]
@@ -45,6 +46,8 @@ export const SYSTEM_PROMPT = `너는 '조커(Joker)'라는 이름의 개인 AI �
 - 내용 수정: [[노션수정:페이지ID 또는 정확한 제목|새 내용 전체]] — 페이지 본문이 통째로 새 내용으로 교체되니, 남겨야 할 내용까지 포함한 완성본을 써.
 - 페이지 삭제: [[노션삭제:페이지ID 또는 정확한 제목]] — 바로 지워지지 않고 상준님에게 확인 카드가 뜨며, 상준님이 카드에서 확인해야 노션 휴지통으로 이동돼(복구 가능). 상준님이 명시적으로 삭제를 요청했을 때만, 한 번에 한 페이지만 써.
 대상 지정 규칙: [노션 조회 결과] 블록에 페이지 ID가 보이면 반드시 그 ID를 대상으로 써. 제목으로 지정했는데 같은 제목이 여러 개면 시스템이 후보 카드를 띄워 상준님이 고르고, 선택한 페이지가 ID와 함께 다음 메시지로 들어와. 수정·삭제처럼 실수하면 안 되는 작업은 대상이 확실하지 않으면 먼저 [[노션검색:...]]으로 확인해. 노션 관련 요청이 없으면 이 태그들을 절대 쓰지 마.
+
+문자 전송 방법(시스템 명령): 상준님이 누군가에게 문자를 보내 달라고 하면 답변 맨 끝에 [[문자:수신번호|내용]] 태그를 붙여. 번호는 숫자만 쓰고(예: 01012345678), 내용은 상황에 맞게 정중하고 간결하게 초안을 써(90자 이내면 단문 요금, 길면 장문 요금). 태그를 붙여도 바로 발송되지 않고 상준님에게 확인 카드가 떠서 '전송'을 눌러야만 나가니, 초안을 자신 있게 담으면 돼. 받는 사람의 번호를 모르면 태그를 쓰지 말고 먼저 물어보고, 회사 메모리에 저장된 번호가 있으면 그걸 써. 태그 하나에 수신자 한 명이야. 요청이 없으면 절대 쓰지 마.
 
 할 일 관리 방법(시스템 명령): 상준님이 할 일 추가를 요청하면 답변 맨 끝에 [[투두:할 일 내용]] 태그를, 완료 처리를 요청하면 [[투두완료:그 할 일의 핵심 키워드]] 태그를 붙여. 내용은 짧고 명확한 한 줄로 써. 날짜·시간이 정해진 약속은 투두가 아니라 일정/리마인더 태그를 써야 해. 요청이 없으면 절대 쓰지 마.
 
@@ -273,6 +276,11 @@ export const IMAGE_TAG_RE =
 export const COWORK_TAG_RE =
   /\[\[\s*코워크\s*:\s*([\s\S]{1,1000}?)\s*\]\]/;
 
+/* [[문자:수신번호|내용]] — SMS draft; sending happens only after the user
+   presses 전송 on the confirmation card (POST /api/sms → Solapi) */
+export const SMS_TAG_RE =
+  /\[\[\s*문자\s*:\s*([0-9][0-9\-\s]{8,15}?)\s*\|\s*([\s\S]{1,1000}?)\s*\]\]/;
+
 /* [[투두:내용]] / [[투두완료:키워드]] — to-do list add / complete */
 export const TODO_TAG_RE =
   /\[\[\s*투두\s*:\s*([^\]|]{1,200}?)\s*\]\]/;
@@ -301,6 +309,9 @@ export function parseActionTag(tag) {
   if ((m = tag.match(NOTION_APPEND_TAG_RE))) return { kind: 'notion_append', target: m[1].trim(), content: m[2].trim() };
   if ((m = tag.match(NOTION_UPDATE_TAG_RE))) return { kind: 'notion_update', target: m[1].trim(), content: m[2].trim() };
   if ((m = tag.match(NOTION_DELETE_TAG_RE))) return { kind: 'notion_delete', target: m[1].trim() };
+  if ((m = tag.match(SMS_TAG_RE))) {
+    return { kind: 'sms', to: m[1].replace(/[^0-9]/g, ''), content: m[2].trim() };
+  }
   if ((m = tag.match(TODO_DONE_TAG_RE))) return { kind: 'todo_done', title: m[1].trim() };
   if ((m = tag.match(TODO_TAG_RE))) return { kind: 'todo', title: m[1].trim() };
   if ((m = tag.match(PDF_TAG_RE))) return { kind: 'pdf', title: m[1].trim(), content: m[2].trim() };
