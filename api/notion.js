@@ -1,16 +1,34 @@
-/* POST /api/notion — executes a user-confirmed Notion operation from the chat
-   UI. Deliberately minimal: only 'archive' (move ONE page to Notion's trash,
-   restorable) is supported, and only after the user pressed the confirmation
-   card that a [[노션삭제:...]] tag produced. Everything else Joker does with
-   Notion runs inside the chat stream handler. */
-import { notionEnv, archivePage, extractPageId } from './_lib/notion.js';
+/* /api/notion — direct Notion endpoints for the web UI.
+   GET  ?op=list  → pages the integration can reach (Notion list panel).
+   POST {op:'archive', page_id} → move ONE page to Notion's trash (restorable),
+   only after the user pressed the confirmation card that a [[노션삭제:...]]
+   tag produced. Everything else Joker does with Notion runs inside the chat
+   stream handler. */
+import { notionEnv, archivePage, extractPageId, listPages } from './_lib/notion.js';
 
 export default async function handler(req, res) {
+  const env = notionEnv();
+  if (req.method === 'GET') {
+    if ((req.query && req.query.op) !== 'list') {
+      res.status(400).json({ error: 'bad_op' });
+      return;
+    }
+    if (!env.configured) {
+      res.status(501).json({ error: 'not_configured' });
+      return;
+    }
+    try {
+      res.status(200).json({ pages: await listPages(env, 20) });
+    } catch (err) {
+      console.error('[joker notion list]', err);
+      res.status(502).json({ error: 'notion_error' });
+    }
+    return;
+  }
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'method_not_allowed' });
     return;
   }
-  const env = notionEnv();
   if (!env.configured) {
     res.status(501).json({ error: 'not_configured' });
     return;

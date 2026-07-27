@@ -146,6 +146,27 @@ export async function replaceBlocks(env, pageId, content) {
   return 'ok';
 }
 
+/* All pages the integration can reach, newest-edited first — feeds the
+   always-on Notion list panel in the web UI. */
+export async function listPages(env, limit = 20) {
+  const j = await nfetch(env, '/v1/search', {
+    method: 'POST',
+    body: JSON.stringify({
+      filter: { value: 'page', property: 'object' },
+      sort: { direction: 'descending', timestamp: 'last_edited_time' },
+      page_size: Math.min(50, Math.max(1, limit)),
+    }),
+  });
+  return (j.results || [])
+    .filter((r) => r && r.object === 'page' && !r.archived)
+    .map((p) => ({
+      id: p.id.replace(/-/g, ''),
+      title: pageTitle(p),
+      url: p.url || null,
+      edited: p.last_edited_time || null,
+    }));
+}
+
 /* Archive = Notion trash (restorable). Single page per call by design. */
 export async function archivePage(env, pageId) {
   await nfetch(env, '/v1/pages/' + pageId, {

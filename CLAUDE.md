@@ -47,6 +47,10 @@
 - js/reminders.js가 /api/events를 폴링해 기한 도래 시 말풍선·음성·브라우저
   알림을 울리고, js/calendar.js가 사이트 내 월별 캘린더 패널(헤더 📅 버튼)을
   그린다. 웹 검색은 Anthropic 서버측 web_search 도구로 켜져 있다.
+- 왼쪽 퀵 사이드바(js/sidebar.js): 노션 페이지 목록(GET /api/notion?op=list,
+  최근 수정순, 제목 클릭=노션 열기, 💬=조커가 읽어오기)과 다가오는 일정
+  6건(클릭 시 캘린더)을 상시 표시. 열림 상태는 localStorage joker.sidebar.v1에
+  유지되고 첫 방문 시 넓은 화면(≥1280px)에서 자동으로 열린다.
 - 사용량 미터: 두 챗 백엔드가 턴별 토큰·검색 수를 joker_usage에 기록하고
   /api/usage(api/usage.js)가 opus-4-8 단가로 비용을 추정, js/usage.js가 헤더
   잔액 칩(⚡)을 그린다. 크레딧 소진은 402 no_credits로 매핑된다.
