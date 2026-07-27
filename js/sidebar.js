@@ -73,6 +73,10 @@
           body.appendChild(when);
         }
         row.appendChild(body);
+
+        /* default actions: 💬 read / 🗑 delete(→ inline confirm) */
+        const acts = document.createElement('div');
+        acts.className = 'acts';
         const ask = document.createElement('button');
         ask.className = 'ask';
         ask.textContent = '💬';
@@ -82,7 +86,49 @@
             window.JokerChat.send('"' + (p.title || '') + '" 페이지(노션ID: ' + p.id + ') 읽어줘.');
           }
         });
-        row.appendChild(ask);
+        const del = document.createElement('button');
+        del.className = 'ask';
+        del.textContent = '🗑';
+        del.title = '노션 휴지통으로 보내기 (복구 가능)';
+        del.addEventListener('click', () => row.classList.add('confirming'));
+        acts.append(ask, del);
+        row.appendChild(acts);
+
+        /* inline confirm — the ONLY path that actually archives, one page at a time */
+        const confirm = document.createElement('div');
+        confirm.className = 'confirm';
+        const ok = document.createElement('button');
+        ok.className = 'ok';
+        ok.textContent = '삭제';
+        const cancel = document.createElement('button');
+        cancel.textContent = '취소';
+        cancel.addEventListener('click', () => row.classList.remove('confirming'));
+        ok.addEventListener('click', async () => {
+          if (ok.dataset.busy) return;
+          ok.dataset.busy = '1';
+          ok.textContent = '…';
+          try {
+            const rr = await fetch('api/notion', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ op: 'archive', page_id: p.id }),
+            });
+            if (!rr.ok) throw new Error('archive_' + rr.status);
+            row.remove();
+            if (!notionItems.querySelector('.notion-item')) refreshNotion();
+          } catch (err) {
+            console.warn('[joker sidebar] archive:', err);
+            ok.textContent = '실패';
+            setTimeout(() => {
+              ok.textContent = '삭제';
+              delete ok.dataset.busy;
+              row.classList.remove('confirming');
+            }, 1500);
+          }
+        });
+        confirm.append(ok, cancel);
+        row.appendChild(confirm);
+
         notionItems.appendChild(row);
       }
     } catch (err) {
@@ -135,6 +181,7 @@
   function open() {
     sidebar.hidden = false;
     requestAnimationFrame(() => sidebar.classList.add('open'));
+    document.body.classList.add('sb-open'); /* shifts .app right so chat stays readable */
     if (toggleBtn) toggleBtn.classList.add('hidden');
     try { localStorage.setItem(OPEN_KEY, '1'); } catch {}
     refreshNotion();
@@ -146,6 +193,7 @@
   function close() {
     sidebar.classList.remove('open');
     setTimeout(() => { sidebar.hidden = true; }, 300);
+    document.body.classList.remove('sb-open');
     if (toggleBtn) toggleBtn.classList.remove('hidden');
     try { localStorage.setItem(OPEN_KEY, '0'); } catch {}
     if (notionTimer) { clearInterval(notionTimer); notionTimer = null; }
