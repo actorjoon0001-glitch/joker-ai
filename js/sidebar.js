@@ -14,10 +14,15 @@
   const sidebar = document.getElementById('sidebar');
   const toggleBtn = document.getElementById('sbToggle');
   const closeBtn = document.getElementById('sbClose');
+  const briefBtn = document.getElementById('sbBrief');
   const notionRefreshBtn = document.getElementById('sbNotionRefresh');
   const notionItems = document.getElementById('sbNotionItems');
   const calOpenBtn = document.getElementById('sbCalOpen');
   const eventItems = document.getElementById('sbEventItems');
+  const todoItems = document.getElementById('sbTodoItems');
+  const todoAddBtn = document.getElementById('sbTodoAddBtn');
+  const todoAddWrap = document.getElementById('sbTodoAdd');
+  const todoInput = document.getElementById('sbTodoInput');
   if (!sidebar || !notionItems || !eventItems) return;
 
   const hasBackend = location.protocol !== 'file:';
@@ -87,8 +92,9 @@
           }
         });
         const del = document.createElement('button');
-        del.className = 'ask';
-        del.textContent = '🗑';
+        del.className = 'ask del-ico';
+        /* 🗑 이모지는 다크 테마에서 잘 안 보여서 선 아이콘 사용 */
+        del.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
         del.title = '노션 휴지통으로 보내기 (복구 가능)';
         del.addEventListener('click', () => row.classList.add('confirming'));
         acts.append(ask, del);
@@ -141,6 +147,94 @@
     }
   }
 
+  /* ── 할 일 체크리스트 ── */
+  async function todoOp(op, id) {
+    try {
+      await fetch('api/todos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(id !== undefined ? { op, id } : { op }),
+      });
+    } catch (err) {
+      console.warn('[joker sidebar] todo op:', err);
+    }
+  }
+
+  async function refreshTodos() {
+    if (!todoItems) return;
+    if (!hasBackend) { empty(todoItems, '서버 연결 후 사용할 수 있어요.'); return; }
+    try {
+      const r = await fetch('api/todos');
+      if (r.status === 503) {
+        empty(todoItems, 'Supabase에서 setup.sql을 한 번 실행하면 켜져요.');
+        return;
+      }
+      if (!r.ok) throw new Error('todos_' + r.status);
+      const todos = (await r.json()).todos || [];
+      const openOnes = todos.filter((t) => !t.done);
+      const doneOnes = todos.filter((t) => t.done).slice(0, 3);
+      if (!openOnes.length && !doneOnes.length) {
+        empty(todoItems, '할 일이 없어요. 조커에게 "투두에 ○○ 추가해줘"라고 해보세요.');
+        return;
+      }
+      todoItems.innerHTML = '';
+      for (const t of [...openOnes, ...doneOnes]) {
+        const row = document.createElement('div');
+        row.className = 'sb-todo' + (t.done ? ' done' : '');
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = Boolean(t.done);
+        cb.title = t.done ? '다시 미완료로' : '완료 처리';
+        cb.addEventListener('change', async () => {
+          cb.disabled = true;
+          await todoOp(cb.checked ? 'done' : 'undone', t.id);
+          refreshTodos();
+        });
+        const title = document.createElement('b');
+        title.textContent = t.title;
+        const del = document.createElement('button');
+        del.className = 'del';
+        del.textContent = '×';
+        del.title = '삭제';
+        del.addEventListener('click', async () => {
+          del.disabled = true;
+          await todoOp('delete', t.id);
+          refreshTodos();
+        });
+        row.append(cb, title, del);
+        todoItems.appendChild(row);
+      }
+    } catch (err) {
+      console.warn('[joker sidebar] todos:', err);
+      if (!todoItems.querySelector('.sb-todo')) {
+        empty(todoItems, '목록을 불러오지 못했어요. 잠시 후 다시 시도해주세요.');
+      }
+    }
+  }
+
+  if (todoAddBtn && todoAddWrap && todoInput) {
+    todoAddBtn.addEventListener('click', () => {
+      todoAddWrap.hidden = !todoAddWrap.hidden;
+      if (!todoAddWrap.hidden) todoInput.focus();
+    });
+    todoInput.addEventListener('keydown', async (e) => {
+      if (e.key !== 'Enter' || e.isComposing) return;
+      const title = todoInput.value.trim();
+      if (!title) return;
+      todoInput.value = '';
+      try {
+        await fetch('api/todos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ op: 'add', title }),
+        });
+      } catch (err) {
+        console.warn('[joker sidebar] todo add:', err);
+      }
+      refreshTodos();
+    });
+  }
+
   /* ── ② upcoming events ── */
   function renderEvents() {
     const list = (window.JokerEvents && window.JokerEvents.list()) || [];
@@ -185,9 +279,12 @@
     if (toggleBtn) toggleBtn.classList.add('hidden');
     try { localStorage.setItem(OPEN_KEY, '1'); } catch {}
     refreshNotion();
+    refreshTodos();
     renderEvents();
     if (!notionTimer) notionTimer = setInterval(refreshNotion, NOTION_REFRESH_MS);
-    if (!eventsTimer) eventsTimer = setInterval(renderEvents, EVENTS_REFRESH_MS);
+    if (!eventsTimer) {
+      eventsTimer = setInterval(() => { renderEvents(); refreshTodos(); }, EVENTS_REFRESH_MS);
+    }
   }
 
   function close() {
@@ -206,6 +303,9 @@
   if (calOpenBtn) calOpenBtn.addEventListener('click', () => {
     if (window.JokerCalendar) window.JokerCalendar.open();
   });
+  if (briefBtn) briefBtn.addEventListener('click', () => {
+    if (window.JokerBrief) window.JokerBrief.run(true);
+  });
 
   /* restore last state; first visit → open automatically on wide screens */
   let saved = null;
@@ -215,5 +315,5 @@
     setTimeout(open, 400);
   }
 
-  window.JokerSidebar = { open, close, refreshNotion, renderEvents };
+  window.JokerSidebar = { open, close, refreshNotion, renderEvents, refreshTodos };
 })();

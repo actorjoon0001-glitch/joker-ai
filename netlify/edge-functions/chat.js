@@ -24,6 +24,8 @@ const SYSTEM_PROMPT = `너는 '조커(Joker)'라는 이름의 개인 AI 비서�
 - 부서 분류: 대화 주제에 따라 화면의 3D 뇌에서 담당 부서 영역이 켜지고 상단에 부서명이 표시됨.
 - 웹 검색: 너는 실시간 웹 검색 도구를 직접 쓸 수 있어(이미 켜져 있음). 최신 정보나 확실하지 않은 사실은 검색해서 근거 있는 답을 하고, 출처는 매체 이름 정도만 자연스럽게 언급해.
 - 일정·리마인더: 상준님이 대화로 부탁하면 네가 직접 등록하고, 시간이 되면 웹페이지가 알림을 띄워줌(웹페이지가 열려 있을 때 확실히 작동). [등록된 일정·리마인더] 블록이 주입되면 그 목록이 현재 등록 상태야.
+- 할 일(투두) 관리: 상준님이 "투두에 추가해줘", "할 일 완료 처리해줘" 하면 네가 목록에 등록·완료 처리함. 목록은 왼쪽 퀵 사이드바에 체크박스로 항상 표시되고, 거기서 직접 추가·체크·삭제도 가능.
+- 아침 브리핑: 매일 오전 8시 이후 그날 처음 접속하면 네가 먼저 오늘 일정·밀린 할 일·최근 노션 기록을 모은 브리핑 메시지를 보냄(자동, 설정 불필요). 사이드바의 ☀️ 버튼으로 다시 볼 수도 있음.
 - PDF 문서: 상준님이 "PDF로 줘", "문서로 뽑아줘" 하면 네가 문서를 만들어주고 채팅에 다운로드 카드가 뜸.
 - 이미지 생성: 상준님이 "~이미지 만들어줘", "시안 뽑아줘" 하면 힉스필드(Higgsfield)로 이미지를 생성해 채팅 카드에 띄워줌. 관리자가 넷리파이 환경변수에 HIGGSFIELD_CREDENTIALS를 등록해야 활성화되고, 미등록이면 카드에 안내가 뜸. 생성에 힉스필드 크레딧이 소모됨.
 - 코워크 위임: 자료 조사, 보고서·엑셀 제작, 웹페이지 개발·수정 같은 무거운 작업은 네가 코워크(클라우드 실무 AI)에게 접수해줄 수 있음. 접수하면 코워크가 1시간 이내에 확인해 실행하고, 완료되면 채팅 알림과 노션으로 결과를 돌려줌.
@@ -39,6 +41,8 @@ const SYSTEM_PROMPT = `너는 '조커(Joker)'라는 이름의 개인 AI 비서�
 - 내용 수정: [[노션수정:페이지ID 또는 정확한 제목|새 내용 전체]] — 페이지 본문이 통째로 새 내용으로 교체되니, 남겨야 할 내용까지 포함한 완성본을 써.
 - 페이지 삭제: [[노션삭제:페이지ID 또는 정확한 제목]] — 바로 지워지지 않고 상준님에게 확인 카드가 뜨며, 상준님이 카드에서 확인해야 노션 휴지통으로 이동돼(복구 가능). 상준님이 명시적으로 삭제를 요청했을 때만, 한 번에 한 페이지만 써.
 대상 지정 규칙: [노션 조회 결과] 블록에 페이지 ID가 보이면 반드시 그 ID를 대상으로 써. 제목으로 지정했는데 같은 제목이 여러 개면 시스템이 후보 카드를 띄워 상준님이 고르고, 선택한 페이지가 ID와 함께 다음 메시지로 들어와. 수정·삭제처럼 실수하면 안 되는 작업은 대상이 확실하지 않으면 먼저 [[노션검색:...]]으로 확인해. 노션 관련 요청이 없으면 이 태그들을 절대 쓰지 마.
+
+할 일 관리 방법(시스템 명령): 상준님이 할 일 추가를 요청하면 답변 맨 끝에 [[투두:할 일 내용]] 태그를, 완료 처리를 요청하면 [[투두완료:그 할 일의 핵심 키워드]] 태그를 붙여. 내용은 짧고 명확한 한 줄로 써. 날짜·시간이 정해진 약속은 투두가 아니라 일정/리마인더 태그를 써야 해. 요청이 없으면 절대 쓰지 마.
 
 PDF 문서 방법(시스템 명령): 상준님이 PDF로 달라고 하거나 문서·보고서·견적서 파일로 뽑아 달라고 하면 답변 맨 끝에 [[PDF:제목|내용]] 태그를 붙여. 내용이 문서 본문 그대로 PDF가 되니 줄바꿈으로 문단·항목을 정리해 1200자 이내로 작성해. 본문에서는 '문서 준비됐다, 카드에서 다운로드하면 된다'고 짧게 말해. 요청이 없으면 절대 쓰지 마.
 
@@ -199,6 +203,53 @@ async function saveEvent(action) {
     if (!r.ok) console.error('[joker edge] event save failed', r.status);
   } catch (err) {
     console.error('[joker edge] event save', err);
+  }
+}
+
+/* [[투두:내용]] → joker_todos row (best-effort) */
+async function saveTodo(title) {
+  try {
+    const { url, key } = sbConfig();
+    const r = await fetch(url + '/rest/v1/joker_todos', {
+      method: 'POST',
+      headers: {
+        apikey: key,
+        Authorization: 'Bearer ' + key,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ title: String(title).slice(0, 200) }),
+    });
+    if (!r.ok) console.error('[joker edge] todo save failed', r.status);
+  } catch (err) {
+    console.error('[joker edge] todo save', err);
+  }
+}
+
+/* [[투두완료:키워드]] → mark first matching open todo done; returns card result */
+async function completeTodo(keyword) {
+  try {
+    const { url, key } = sbConfig();
+    const headers = { apikey: key, Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' };
+    const kw = String(keyword).replace(/[%*]/g, '').trim().slice(0, 100);
+    if (!kw) return { kind: 'todo_done', title: String(keyword), status: 'not_found' };
+    const q = await fetch(
+      url + '/rest/v1/joker_todos?select=id,title&done=eq.false&title=ilike.' +
+      encodeURIComponent('*' + kw + '*') + '&order=created_at.asc&limit=1',
+      { headers }
+    );
+    if (!q.ok) return { kind: 'todo_done', title: kw, status: 'error' };
+    const rows = await q.json().catch(() => []);
+    if (!rows.length) return { kind: 'todo_done', title: kw, status: 'not_found' };
+    const r = await fetch(url + '/rest/v1/joker_todos?id=eq.' + rows[0].id, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ done: true, done_at: new Date().toISOString() }),
+    });
+    if (!r.ok) return { kind: 'todo_done', title: rows[0].title, status: 'error' };
+    return { kind: 'todo_done', title: rows[0].title, status: 'ok' };
+  } catch (err) {
+    console.error('[joker edge] todo done', err);
+    return { kind: 'todo_done', title: String(keyword), status: 'error' };
   }
 }
 
@@ -502,6 +553,12 @@ const IMAGE_TAG_RE =
 const COWORK_TAG_RE =
   /\[\[\s*코워크\s*:\s*([\s\S]{1,1000}?)\s*\]\]/;
 
+/* [[투두:내용]] / [[투두완료:키워드]] — to-do list add / complete */
+const TODO_TAG_RE =
+  /\[\[\s*투두\s*:\s*([^\]|]{1,200}?)\s*\]\]/;
+const TODO_DONE_TAG_RE =
+  /\[\[\s*투두완료\s*:\s*([^\]|]{1,200}?)\s*\]\]/;
+
 /* Notion page-operation tags — target is a page id/URL or an exact title */
 const NOTION_SEARCH_TAG_RE =
   /\[\[\s*노션검색\s*:\s*([^\]|]{1,100}?)\s*\]\]/;
@@ -529,6 +586,8 @@ function parseActionTag(tag) {
   if ((m = tag.match(NOTION_APPEND_TAG_RE))) return { kind: 'notion_append', target: m[1].trim(), content: m[2].trim() };
   if ((m = tag.match(NOTION_UPDATE_TAG_RE))) return { kind: 'notion_update', target: m[1].trim(), content: m[2].trim() };
   if ((m = tag.match(NOTION_DELETE_TAG_RE))) return { kind: 'notion_delete', target: m[1].trim() };
+  if ((m = tag.match(TODO_DONE_TAG_RE))) return { kind: 'todo_done', title: m[1].trim() };
+  if ((m = tag.match(TODO_TAG_RE))) return { kind: 'todo', title: m[1].trim() };
   if ((m = tag.match(PDF_TAG_RE))) return { kind: 'pdf', title: m[1].trim(), content: m[2].trim() };
   if ((m = tag.match(IMAGE_TAG_RE))) return { kind: 'image', prompt: m[1].trim() };
   if ((m = tag.match(COWORK_TAG_RE))) return { kind: 'cowork', request: m[1].trim() };
@@ -563,7 +622,7 @@ function createDeptTagFilter(writeText, writeHeader, onAction) {
       const action = parseActionTag(tag);
       s = s.slice(end + 2);
       if (action) {
-        if (action.kind.indexOf('notion') !== 0) writeHeader('\u0000action:' + JSON.stringify(action) + '\u0000');
+        if (action.kind.indexOf('notion') !== 0 && action.kind !== 'todo_done') writeHeader('\u0000action:' + JSON.stringify(action) + '\u0000');
         if (onAction) { try { onAction(action); } catch (_) {} }
         if (s.charAt(0) === '\n') s = s.slice(1);
         while (out.length && (out.endsWith(' ') || out.endsWith('\n'))) out = out.slice(0, -1);
@@ -741,6 +800,12 @@ export default async function handler(request) {
               pendingWrites.push(runNotionOp(action).then((result) => {
                 controller.enqueue(encoder.encode(CTRL + 'action:' + JSON.stringify(result) + CTRL));
               }).catch((e) => console.error('[joker edge] notion op', e)));
+            } else if (action.kind === 'todo') {
+              pendingWrites.push(saveTodo(action.title));
+            } else if (action.kind === 'todo_done') {
+              pendingWrites.push(completeTodo(action.title).then((result) => {
+                controller.enqueue(encoder.encode(CTRL + 'action:' + JSON.stringify(result) + CTRL));
+              }).catch((e) => console.error('[joker edge] todo done', e)));
             } else if (action.kind === 'cowork') {
               pendingWrites.push(saveTask(action.request));
             } else if (action.kind === 'event' || action.kind === 'reminder') {

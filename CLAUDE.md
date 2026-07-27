@@ -47,6 +47,14 @@
 - js/reminders.js가 /api/events를 폴링해 기한 도래 시 말풍선·음성·브라우저
   알림을 울리고, js/calendar.js가 사이트 내 월별 캘린더 패널(헤더 📅 버튼)을
   그린다. 웹 검색은 Anthropic 서버측 web_search 도구로 켜져 있다.
+- 할 일(투두): joker_todos 테이블(setup.sql), /api/todos(api/todos.js,
+  GET 목록·POST add/done/undone/delete). 모델 태그 [[투두:내용]](즉시 등록)과
+  [[투두완료:키워드]](ilike 매칭 후 결과 카드, ok/not_found)를 두 챗 백엔드가
+  처리. 사이드바 ☑️ 섹션에서 체크·추가·삭제 가능.
+- 아침 브리핑(js/brief.js): 매일 KST 8시 이후 그날 첫 접속 시(localStorage
+  joker.brief.last로 1일 1회) 오늘 일정+미완료 투두+최근 24h 노션 업데이트를
+  클라이언트에서 조합해 JokerChat.notify로 말풍선+TTS. LLM 호출 없음(무료).
+  사이드바 ☀️ 버튼 = JokerBrief.run(true) 수동 재생.
 - 왼쪽 퀵 사이드바(js/sidebar.js): 노션 페이지 목록(GET /api/notion?op=list,
   최근 수정순, 제목 클릭=노션 열기, 💬=조커가 읽어오기, 🗑=인라인 삭제/취소
   확인 후 POST /api/notion archive로 휴지통 이동)과 다가오는 일정 6건(클릭 시

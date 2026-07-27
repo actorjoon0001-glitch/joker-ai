@@ -861,6 +861,60 @@
     padding: 2px 8px;
   }
   .sb-head button:hover { color: var(--text); }
+  .sb-head-btns { display: flex; align-items: center; gap: 2px; }
+  .sb-head-btns #sbBrief { font-size: 15px; }
+
+  /* 할 일 체크리스트 */
+  .sb-todo-add { margin-bottom: 8px; }
+  .sb-todo-add input {
+    width: 100%;
+    padding: 7px 10px;
+    font-size: 12.5px;
+    color: var(--text);
+    background: rgba(52, 224, 255, 0.04);
+    border: 1px solid rgba(52, 224, 255, 0.3);
+    border-radius: 9px;
+    outline: none;
+  }
+  .sb-todo {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 7px 9px;
+    border: 1px solid rgba(52, 224, 255, 0.14);
+    border-radius: 9px;
+    background: rgba(52, 224, 255, 0.03);
+    transition: border-color 0.2s, background 0.2s, opacity 0.2s;
+  }
+  .sb-todo:hover { border-color: rgba(52, 224, 255, 0.4); }
+  .sb-todo input[type='checkbox'] {
+    flex-shrink: 0;
+    width: 15px;
+    height: 15px;
+    accent-color: #58ff9b;
+    cursor: pointer;
+  }
+  .sb-todo b {
+    flex: 1;
+    min-width: 0;
+    font-weight: 500;
+    font-size: 12.5px;
+    color: var(--text);
+    word-break: break-word;
+  }
+  .sb-todo.done { opacity: 0.55; }
+  .sb-todo.done b { text-decoration: line-through; color: var(--text-dim); }
+  .sb-todo .del {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 15px;
+    cursor: pointer;
+    padding: 1px 4px;
+    opacity: 0.6;
+  }
+  .sb-todo .del:hover { color: #ff5c5c; opacity: 1; }
   .sb-sec { padding: 10px 0 4px; border-top: 1px solid rgba(52, 224, 255, 0.1); }
   .sb-sec-head {
     display: flex;
@@ -923,6 +977,9 @@
     padding: 3px;
   }
   .notion-item .ask:hover { opacity: 1; }
+  .notion-item .del-ico { color: var(--text-dim); opacity: 0.85; }
+  .notion-item .del-ico svg { width: 15px; height: 15px; display: block; }
+  .notion-item .del-ico:hover { color: #ff5c5c; opacity: 1; }
   .notion-item .acts { display: flex; align-items: center; gap: 1px; flex-shrink: 0; }
   .notion-item .confirm { display: none; align-items: center; gap: 5px; flex-shrink: 0; }
   .notion-item.confirming .acts { display: none; }
@@ -1382,8 +1439,21 @@
 <aside class="sidebar" id="sidebar" hidden>
   <div class="sb-head">
     <h2>QUICK PANEL</h2>
-    <button id="sbClose" aria-label="사이드바 닫기">×</button>
+    <div class="sb-head-btns">
+      <button id="sbBrief" title="오늘 브리핑 다시 듣기" aria-label="아침 브리핑">☀️</button>
+      <button id="sbClose" aria-label="사이드바 닫기">×</button>
+    </div>
   </div>
+  <section class="sb-sec">
+    <div class="sb-sec-head">
+      <h3>☑️ 할 일</h3>
+      <button id="sbTodoAddBtn" aria-label="할 일 추가">+ 추가</button>
+    </div>
+    <div class="sb-todo-add" id="sbTodoAdd" hidden>
+      <input id="sbTodoInput" type="text" maxlength="200" placeholder="할 일 입력 후 Enter" />
+    </div>
+    <div class="sb-items" id="sbTodoItems"></div>
+  </section>
   <section class="sb-sec">
     <div class="sb-sec-head">
       <h3>📓 노션 페이지</h3>
@@ -1465,6 +1535,7 @@
 <script src="js/reminders.js"></script>
 <script src="js/calendar.js"></script>
 <script src="js/sidebar.js"></script>
+<script src="js/brief.js"></script>
 <script src="js/usage.js"></script>
 <script src="js/pdf.js"></script>
 <script src="js/main.js"></script>
