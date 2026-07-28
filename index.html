@@ -826,7 +826,7 @@
     top: 0;
     bottom: 0;
     z-index: 6;
-    width: 280px;
+    width: var(--sb-w, 280px);
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -1074,21 +1074,39 @@
   }
   .sb-cal-grid .day.range.today { color: var(--cyan); }
 
-  /* 사이드바가 열리면 본문 컬럼을 오른쪽으로 밀어 채팅이 가려지지 않게 —
-     화면이 충분히 넓으면 원래의 중앙 정렬 위치를 그대로 유지한다 */
-  .app { transition: margin-left 0.28s cubic-bezier(0.22, 1, 0.36, 1), max-width 0.28s cubic-bezier(0.22, 1, 0.36, 1); }
+  /* 사이드바가 열리면 본문 컬럼을 그만큼 오른쪽으로 밀어 채팅이 절대 가려지지
+     않게 한다. 화면이 넓으면 원래의 중앙 정렬 위치를 그대로 유지하고, 좁아질수록
+     사이드바 폭을 줄여 본문 자리를 확보한다. */
+  :root { --sb-w: 280px; }
+  .app {
+    transition: margin-left 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+                max-width 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  }
   body.sb-open .app {
-    margin-left: max(300px, calc((100vw - 860px) / 2));
+    margin-left: max(calc(var(--sb-w) + 16px), calc((100vw - 860px) / 2));
     margin-right: auto;
-    max-width: min(860px, calc(100vw - 320px));
+    max-width: min(860px, calc(100vw - var(--sb-w) - 32px));
   }
-  /* 좁은 화면: 밀 공간이 없으니 오버레이로 겹쳐 뜨고, 닫으면 원래대로 */
-  @media (max-width: 900px) {
+  @media (max-width: 1120px) { :root { --sb-w: 252px; } }
+  @media (max-width: 880px) { :root { --sb-w: 228px; } }
+  .sidebar { box-shadow: 20px 0 60px rgba(0, 0, 0, 0.45); }
+
+  /* 아주 좁은 화면(폰): 밀 자리가 없으니 오버레이 + 딤 배경으로 띄우고,
+     배경을 누르면 닫힌다 */
+  .sb-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 5;
+    background: rgba(2, 6, 16, 0.55);
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.28s ease;
+  }
+  @media (max-width: 620px) {
+    :root { --sb-w: min(300px, 86vw); }
     body.sb-open .app { margin-left: auto; margin-right: auto; max-width: 860px; }
-    .sidebar { width: min(300px, 86vw); box-shadow: 20px 0 60px rgba(0, 0, 0, 0.45); }
-  }
-  @media (max-width: 1420px) {
-    .sidebar { box-shadow: 20px 0 60px rgba(0, 0, 0, 0.45); }
+    body.sb-open .sb-backdrop { opacity: 1; pointer-events: auto; }
   }
 
   /* VOICE tab — speech-rate slider */
@@ -1510,6 +1528,7 @@
     <line x1="9" y1="11" x2="16" y2="11"></line>
   </svg>
 </button>
+<div class="sb-backdrop" id="sbBackdrop"></div>
 <aside class="sidebar" id="sidebar" hidden>
   <div class="sb-head">
     <h2>QUICK PANEL</h2>

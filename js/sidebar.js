@@ -402,6 +402,9 @@
 
   if (toggleBtn) toggleBtn.addEventListener('click', open);
   if (closeBtn) closeBtn.addEventListener('click', close);
+  /* 폰처럼 좁은 화면에서만 보이는 딤 배경 — 누르면 닫힌다 */
+  const backdrop = document.getElementById('sbBackdrop');
+  if (backdrop) backdrop.addEventListener('click', close);
   if (notionRefreshBtn) notionRefreshBtn.addEventListener('click', refreshNotion);
   if (calOpenBtn) calOpenBtn.addEventListener('click', () => {
     if (window.JokerCalendar) window.JokerCalendar.open();
