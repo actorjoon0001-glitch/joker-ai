@@ -50,6 +50,13 @@
   SOLAPI_API_SECRET·SOLAPI_SENDER(사전 등록 발신번호) 미설정 시 501 →
   카드에 안내. 채팅 스트림 핸들러는 절대 직접 발송하지 않는다. 공용 클라이언트는
   `api/_lib/solapi.js`(solapiEnv/normalizeNumber/sendSms).
+- 메일(Resend/SendGrid): 모델이 [[메일:받는주소|제목|본문]] 태그를 붙이면 문자와
+  똑같이 전송 확인 카드만 뜨고, "전송"을 눌러야 POST /api/mail(api/mail.js)이
+  1통 발송한다(수신자 1명). 공용 클라이언트는 `api/_lib/mail.js` —
+  RESEND_API_KEY가 있으면 Resend, 없고 SENDGRID_API_KEY가 있으면 SendGrid를
+  쓰고, MAIL_FROM(발신 주소, "이름 <a@b>" 형식 가능)은 필수. MAIL_REPLY_TO는
+  선택. 미설정 시 501 → 카드에 안내, 제공자 오류 사유(발신 주소 미인증 등)는
+  detail로 카드에 표시된다.
 - 리마인더 문자: netlify/functions/reminder-sms.mjs가 넷리파이 예약 실행
   (`config.schedule='*/2 * * * *'`)으로 기한 도래한 joker_events를 찾아
   본인 번호(JOKER_SMS_TO, 없으면 SOLAPI_SENDER)로 문자를 보낸다. 중복 방지용

@@ -726,7 +726,8 @@
 
     function addActionChip(a) {
       if (!a || !a.kind) return;
-      if (a.kind !== 'sms' && a.kind.indexOf('notion_') !== 0 && !a.title && !a.prompt && !a.request) return;
+      if (a.kind !== 'sms' && a.kind !== 'mail' && a.kind.indexOf('notion_') !== 0 &&
+          !a.title && !a.prompt && !a.request) return;
       const el = document.createElement('div');
       el.className = 'action-chip';
       const info = document.createElement('div');
@@ -825,6 +826,68 @@
         cancel.addEventListener('click', (e) => {
           e.preventDefault();
           kind.textContent = '💬 문자 전송 취소됨';
+          ok.remove();
+          cancel.remove();
+        });
+        el.append(ok, cancel);
+      } else if (a.kind === 'mail') {
+        /* 문자와 동일한 흐름 — 서버는 초안만 만들었고, 이 카드의 '전송'을
+           눌러야만 POST /api/mail로 실제 발송된다 (한 번에 한 명) */
+        el.classList.add('warn');
+        kind.textContent = '📧 메일 전송 확인';
+        title.textContent = (a.to || '') + ' 님에게';
+        const subj = document.createElement('span');
+        subj.className = 'when';
+        subj.textContent = '제목: ' + (a.subject || '');
+        const preview = document.createElement('span');
+        preview.className = 'when';
+        preview.textContent = (a.content || '').slice(0, 160) + ((a.content || '').length > 160 ? '…' : '');
+        info.append(subj, preview);
+        const ok = document.createElement('a');
+        ok.href = '#';
+        ok.className = 'danger';
+        ok.textContent = '전송';
+        const cancel = document.createElement('a');
+        cancel.href = '#';
+        cancel.textContent = '취소';
+        ok.addEventListener('click', async (e) => {
+          e.preventDefault();
+          if (ok.dataset.busy) return;
+          ok.dataset.busy = '1';
+          ok.textContent = '전송 중…';
+          try {
+            const r = await fetch('api/mail', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ to: a.to, subject: a.subject, text: a.content }),
+            });
+            if (r.status === 501) {
+              kind.textContent = '📧 메일 연동 대기';
+              subj.textContent = '넷리파이에 MAIL_FROM + RESEND_API_KEY(또는 SENDGRID_API_KEY) 설정이 필요해요';
+              preview.remove();
+              ok.remove();
+              cancel.remove();
+              return;
+            }
+            if (!r.ok) {
+              const j = await r.json().catch(() => ({}));
+              throw new Error(j.detail || 'mail_' + r.status);
+            }
+            el.classList.remove('warn');
+            kind.textContent = '📧 메일 전송됨';
+            ok.remove();
+            cancel.remove();
+          } catch (err) {
+            console.warn('[joker] mail send:', err);
+            ok.textContent = '실패 — 다시 시도';
+            const msg = String((err && err.message) || '');
+            if (msg && !/^mail_\d+$/.test(msg)) subj.textContent = msg;
+            delete ok.dataset.busy;
+          }
+        });
+        cancel.addEventListener('click', (e) => {
+          e.preventDefault();
+          kind.textContent = '📧 메일 전송 취소됨';
           ok.remove();
           cancel.remove();
         });
