@@ -48,7 +48,15 @@
   카드만 뜨고, 사용자가 "전송"을 눌러야 POST /api/sms(api/sms.js)가 솔라피
   HMAC-SHA256 인증으로 1건 발송한다(수신자 1명 제한). SOLAPI_API_KEY·
   SOLAPI_API_SECRET·SOLAPI_SENDER(사전 등록 발신번호) 미설정 시 501 →
-  카드에 안내. 채팅 스트림 핸들러는 절대 직접 발송하지 않는다.
+  카드에 안내. 채팅 스트림 핸들러는 절대 직접 발송하지 않는다. 공용 클라이언트는
+  `api/_lib/solapi.js`(solapiEnv/normalizeNumber/sendSms).
+- 리마인더 문자: netlify/functions/reminder-sms.mjs가 넷리파이 예약 실행
+  (`config.schedule='*/2 * * * *'`)으로 기한 도래한 joker_events를 찾아
+  본인 번호(JOKER_SMS_TO, 없으면 SOLAPI_SENDER)로 문자를 보낸다. 중복 방지용
+  joker_events.sms_sent 컬럼 필요(setup.sql, 기존 설치는 alter 1줄 재실행).
+  기한 6시간 이내·1회 최대 5건만 처리하고, 4xx 실패는 표시해 재시도를 멈추되
+  네트워크 오류는 다음 실행에서 재시도한다. 클라이언트 알림용 notified 플래그는
+  건드리지 않으며 JOKER_SMS_REMINDERS=off로 끌 수 있다.
 - js/reminders.js가 /api/events를 폴링해 기한 도래 시 말풍선·음성·브라우저
   알림을 울리고, js/calendar.js가 사이트 내 월별 캘린더 패널(헤더 📅 버튼)을
   그린다. 웹 검색은 Anthropic 서버측 web_search 도구로 켜져 있다.

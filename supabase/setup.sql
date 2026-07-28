@@ -27,10 +27,13 @@ create table if not exists joker_events (
   due_at timestamptz not null,
   end_at timestamptz,
   notified boolean not null default false,
+  sms_sent boolean not null default false,
   created_at timestamptz not null default now()
 );
 -- 기존 설치에 기간 일정 컬럼 추가 (재실행해도 안전)
 alter table joker_events add column if not exists end_at timestamptz;
+-- 기한 도래 시 문자 발송 완료 표시 (netlify/functions/reminder-sms.mjs)
+alter table joker_events add column if not exists sms_sent boolean not null default false;
 
 -- API 사용량 집계 (턴별 토큰·검색 수) + 잔액 기준점(kind='base')
 create table if not exists joker_usage (
