@@ -365,6 +365,13 @@
               const s = window.JokerStaff && window.JokerStaff.current();
               return s ? { name: s.name, role: s.role, dept: s.dept, persona: s.persona } : undefined;
             })(),
+            /* 팀 명부 — 조커가 누구에게 일을 맡길지 고를 수 있게 함께 보낸다 */
+            team: (() => {
+              const list = window.JokerStaff ? window.JokerStaff.list() : [];
+              return list && list.length
+                ? list.slice(0, 12).map((s) => ({ name: s.name, role: s.role, dept: s.dept }))
+                : undefined;
+            })(),
             image: image ? { media_type: image.media_type, data: image.data } : undefined,
           }),
           signal: ctrl.signal,
@@ -498,6 +505,51 @@
           }
         }
         await new Promise((r) => setTimeout(r, pollMs));
+      }
+    }
+
+    /* ── AI 직원 업무 카드 ── 배정된 일이 백그라운드에서 처리되는 동안
+       상태 뱃지를 갱신하고, 끝나면 결과 요약과 노션 링크를 붙인다. */
+    const STAFF_STATES = {
+      pending: { label: '배정됨', cls: 'queued' },
+      running: { label: '작업 중', cls: 'working' },
+      done: { label: '완료 ✓', cls: 'done' },
+      failed: { label: '실패', cls: 'failed' },
+    };
+
+    function setStaffBadge(badge, status) {
+      const s = STAFF_STATES[status] || STAFF_STATES.pending;
+      badge.className = 'task-badge ' + s.cls;
+      badge.textContent = s.label;
+    }
+
+    async function trackStaffTask(el, info, badge, id) {
+      if (!id || !window.JokerStaff) return;
+      const pollMs = window.__staffPollMs || 15000;
+      const started = Date.now();
+      while (Date.now() - started < 30 * 60 * 1000) {
+        await new Promise((r) => setTimeout(r, pollMs));
+        await window.JokerStaff.refreshTasks();
+        const t = window.JokerStaff.task(id);
+        if (!t) continue;
+        setStaffBadge(badge, t.status);
+        if (t.status !== 'done' && t.status !== 'failed') continue;
+        if (t.result) {
+          const note = document.createElement('span');
+          note.className = 'when';
+          note.textContent = String(t.result).slice(0, 220);
+          info.appendChild(note);
+        }
+        if (t.notion_url) {
+          const link = document.createElement('a');
+          link.href = t.notion_url;
+          link.target = '_blank';
+          link.rel = 'noopener';
+          link.textContent = '노션에서 보기';
+          el.appendChild(link);
+        }
+        scrollDown();
+        return;
       }
     }
 
@@ -754,7 +806,28 @@
       info.append(kind, title);
       el.appendChild(info);
 
-      if (a.kind === 'cowork') {
+      if (a.kind === 'staff_task') {
+        const who = (a.emoji ? a.emoji + ' ' : '👤 ') + (a.name || '직원');
+        title.textContent = (a.request || '').slice(0, 80);
+        if (a.status === 'queued') {
+          kind.textContent = who + '에게 배정';
+          const badge = document.createElement('span');
+          setStaffBadge(badge, 'pending');
+          el.appendChild(badge);
+          if (window.JokerStaff) {
+            window.JokerStaff.kick();          /* 워커 즉시 기동 */
+            window.JokerStaff.refreshTasks();
+          }
+          trackStaffTask(el, info, badge, a.id);
+        } else {
+          el.classList.add('warn');
+          kind.textContent = a.status === 'not_found'
+            ? '👤 그런 직원이 없어요 — ' + (a.name || '')
+            : a.status === 'db_not_ready'
+              ? '👤 업무 지시함이 아직 없어요 (setup.sql 실행 필요)'
+              : '👤 업무 배정 실패';
+        }
+      } else if (a.kind === 'cowork') {
         kind.textContent = '🤝 코워크 작업';
         title.textContent = (a.request || '').slice(0, 80);
         const badge = document.createElement('span');

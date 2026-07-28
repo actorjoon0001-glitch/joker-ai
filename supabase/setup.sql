@@ -99,6 +99,23 @@ select * from (values
 ) as v(name, role, dept, emoji, persona, sort)
 where not exists (select 1 from joker_staff);
 
+-- 직원 업무 지시함 — [[업무:이름|내용]] 태그로 접수되고, 백그라운드 워커가
+-- 그 직원의 페르소나로 실제 작업을 수행해 result에 결과를 채운다
+create table if not exists joker_staff_tasks (
+  id bigint generated always as identity primary key,
+  staff_id bigint,
+  staff_name text not null,
+  staff_emoji text,
+  dept text,
+  request text not null,
+  status text not null default 'pending' check (status in ('pending', 'running', 'done', 'failed')),
+  result text,
+  notion_url text,
+  notified boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 -- RLS: publishable(anon) 키로 이 테이블들만 읽기/쓰기 허용
 alter table joker_memory enable row level security;
 alter table joker_messages enable row level security;
@@ -134,4 +151,9 @@ create policy "joker anon todos" on joker_todos
 alter table joker_staff enable row level security;
 drop policy if exists "joker anon staff" on joker_staff;
 create policy "joker anon staff" on joker_staff
+  for all to anon using (true) with check (true);
+
+alter table joker_staff_tasks enable row level security;
+drop policy if exists "joker anon staff tasks" on joker_staff_tasks;
+create policy "joker anon staff tasks" on joker_staff_tasks
   for all to anon using (true) with check (true);
