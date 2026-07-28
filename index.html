@@ -1000,6 +1000,75 @@
   .notion-item .confirm button.ok:hover { background: rgba(255, 92, 92, 0.1); }
   .sb-event .ico { flex-shrink: 0; font-size: 13px; }
 
+  /* 팀(AI 직원) 카드 — 누르면 그 직원이 대화를 맡는다 */
+  .sb-staff {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 7px 9px;
+    border: 1px solid rgba(178, 107, 255, 0.16);
+    border-radius: 9px;
+    background: rgba(178, 107, 255, 0.04);
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .sb-staff:hover { border-color: rgba(178, 107, 255, 0.5); background: rgba(178, 107, 255, 0.09); }
+  .sb-staff .ico { flex-shrink: 0; font-size: 16px; }
+  .sb-staff .body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .sb-staff .body b { font-weight: 600; font-size: 12.5px; color: var(--text); }
+  .sb-staff .body span {
+    font-size: 11px;
+    color: var(--text-dim);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .sb-staff.on {
+    border-color: rgba(178, 107, 255, 0.75);
+    background: rgba(178, 107, 255, 0.16);
+    box-shadow: 0 0 14px rgba(178, 107, 255, 0.18) inset;
+  }
+  .sb-staff.on .body b { color: #d9b8ff; }
+
+  /* 설정 TEAM 탭 — 직원 편집 카드 */
+  .staff-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    border: 1px solid rgba(178, 107, 255, 0.22);
+    border-radius: 12px;
+    background: rgba(178, 107, 255, 0.04);
+  }
+  .staff-head { display: flex; align-items: center; gap: 6px; }
+  .staff-row input, .staff-row select, .staff-row textarea {
+    font: inherit;
+    color: var(--text);
+    background: rgba(6, 12, 24, 0.6);
+    border: 1px solid rgba(178, 107, 255, 0.25);
+    border-radius: 8px;
+    padding: 7px 9px;
+    outline: none;
+  }
+  .staff-row input:focus, .staff-row select:focus, .staff-row textarea:focus {
+    border-color: rgba(178, 107, 255, 0.7);
+  }
+  .staff-row .ico { width: 46px; text-align: center; font-size: 15px; flex-shrink: 0; }
+  .staff-row .nm { width: 110px; flex-shrink: 0; }
+  .staff-row .rl { flex: 1; min-width: 90px; }
+  .staff-row select { flex-shrink: 0; max-width: 120px; }
+  .staff-row textarea { width: 100%; resize: vertical; line-height: 1.5; }
+  .staff-row .del {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 19px;
+    cursor: pointer;
+    padding: 0 4px;
+  }
+  .staff-row .del:hover { color: #ff5c5c; }
+
   /* 사이드바 미니 달력 */
   .sb-cal { margin-bottom: 10px; }
   .sb-cal-nav {
@@ -1539,6 +1608,12 @@
   </div>
   <section class="sb-sec">
     <div class="sb-sec-head">
+      <h3>👥 팀</h3>
+    </div>
+    <div class="sb-items" id="sbStaffItems"></div>
+  </section>
+  <section class="sb-sec">
+    <div class="sb-sec-head">
       <h3>☑️ 할 일</h3>
       <button id="sbTodoAddBtn" aria-label="할 일 추가">+ 추가</button>
     </div>
@@ -1580,6 +1655,7 @@
   <div class="settings-tabs" id="settingsTabs">
     <button class="active" data-tab="memory">MEMORY</button>
     <button data-tab="skills">SKILLS</button>
+    <button data-tab="team">TEAM</button>
     <button data-tab="voice">VOICE</button>
   </div>
   <div class="settings-pane" id="paneMemory">
@@ -1595,6 +1671,11 @@
     <p class="settings-desc">특정 업무의 절차·양식·톤을 스킬로 등록하세요. 메시지에 발동 키워드가 들어간 대화에서만 그 스킬이 조커에게 전달됩니다. 메모리가 "아는 것"이라면 스킬은 "일하는 방법"입니다.</p>
     <div class="settings-fields" id="skillList"></div>
     <button class="skill-add" id="skillAdd">+ 스킬 추가</button>
+  </div>
+  <div class="settings-pane" id="paneTeam" hidden>
+    <p class="settings-desc">분야별 AI 직원을 등록하세요. 왼쪽 사이드바에서 직원을 고르거나 대화에서 이름을 부르면("세리야 ~") 그 직원이 자기 전문성·말투로 응대합니다. 직원들도 노션·일정·문자·메일 같은 조커의 도구를 그대로 씁니다.</p>
+    <div class="settings-fields" id="staffList"></div>
+    <button class="skill-add" id="staffAdd">+ 직원 추가</button>
   </div>
   <div class="settings-pane" id="paneVoice" hidden>
     <p class="settings-desc">조커가 답변을 읽어주는 말 속도를 조절하세요. 움직이는 즉시 적용·저장되고, 브라우저 내장 음성과 일레븐랩스 음성 모두에 반영됩니다.</p>
@@ -1635,6 +1716,7 @@
 <script src="js/chat.js"></script>
 <script src="js/reminders.js"></script>
 <script src="js/calendar.js"></script>
+<script src="js/staff.js"></script>
 <script src="js/sidebar.js"></script>
 <script src="js/brief.js"></script>
 <script src="js/usage.js"></script>

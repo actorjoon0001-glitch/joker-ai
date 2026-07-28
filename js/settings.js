@@ -75,9 +75,10 @@
   const panes = {
     memory: document.getElementById('paneMemory'),
     skills: document.getElementById('paneSkills'),
+    team: document.getElementById('paneTeam'),
     voice: document.getElementById('paneVoice'),
   };
-  const TITLES = { memory: 'COMPANY MEMORY', skills: 'SKILLS', voice: 'VOICE' };
+  const TITLES = { memory: 'COMPANY MEMORY', skills: 'SKILLS', team: 'TEAM', voice: 'VOICE' };
 
   function setTab(name) {
     for (const b of tabBtns) b.classList.toggle('active', b.dataset.tab === name);
@@ -120,6 +121,7 @@
     for (const ta of deptTas) ta.value = (knowledge.depts || {})[ta.dataset.dept] || '';
     if (window.JokerVoice) renderRate(window.JokerVoice.getRate());
     if (window.JokerSkills) window.JokerSkills.renderUI(); /* discard unsaved edits */
+    if (window.JokerStaff) window.JokerStaff.renderUI();
     panel.hidden = false;
     backdrop.hidden = false;
     requestAnimationFrame(() => {
@@ -143,6 +145,7 @@
     };
     save(knowledge);
     if (window.JokerSkills) window.JokerSkills.saveFromUI();
+    if (window.JokerStaff) await window.JokerStaff.saveFromUI();
 
     let synced = false;
     if (hasBackend) {

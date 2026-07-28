@@ -226,7 +226,8 @@
     function addThinking() {
       const el = document.createElement('div');
       el.className = 'msg joker typing-dots';
-      el.innerHTML = '<span class="who">Joker</span><span class="dots"><span></span><span></span><span></span></span>';
+      el.innerHTML = '<span class="who"></span><span class="dots"><span></span><span></span><span></span></span>';
+      el.querySelector('.who').textContent = whoLabel();
       chat.appendChild(el);
       scrollDown();
       return el;
@@ -236,9 +237,19 @@
        Text is appended in chunks (~12 times/sec) instead of per character:
        long replies read calmly without the rapid flicker, while progress is
        still visible live. Returns {push, close, done}. */
+    /* 담당 직원이 선택돼 있으면 말풍선 이름표를 그 직원으로 바꾼다 */
+    function whoLabel() {
+      const s = window.JokerStaff && window.JokerStaff.current();
+      return s && s.name ? (s.emoji ? s.emoji + ' ' : '') + s.name : 'Joker';
+    }
+
     function makeTypewriter(el) {
       el.classList.remove('typing-dots');
-      el.innerHTML = '<span class="who">Joker</span>';
+      el.innerHTML = '';
+      const who = document.createElement('span');
+      who.className = 'who';
+      who.textContent = whoLabel();
+      el.appendChild(who);
       const body = document.createElement('span');
       const cursor = document.createElement('span');
       cursor.className = 'cursor';
@@ -350,6 +361,10 @@
             skills: activeSkills,
             events: window.JokerEvents ? window.JokerEvents.list() : undefined,
             notion: notionCtx.length ? notionCtx.slice(-2) : undefined,
+            staff: (() => {
+              const s = window.JokerStaff && window.JokerStaff.current();
+              return s ? { name: s.name, role: s.role, dept: s.dept, persona: s.persona } : undefined;
+            })(),
             image: image ? { media_type: image.media_type, data: image.data } : undefined,
           }),
           signal: ctrl.signal,
@@ -1031,6 +1046,14 @@
       sendBtn.disabled = true;
       input.value = '';
       clearImage();
+
+      /* "세리야 ~" 처럼 이름을 부르면 그 직원에게 넘긴다 */
+      if (window.JokerStaff) {
+        const called = window.JokerStaff.detect(text);
+        if (called && (!window.JokerStaff.current() || window.JokerStaff.current().id !== called.id)) {
+          window.JokerStaff.select(called.id);
+        }
+      }
 
       /* skills fire on the latest user message only; badge shown only when the
          backend will actually apply them */
