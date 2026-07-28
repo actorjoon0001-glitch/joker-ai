@@ -17,6 +17,7 @@ import notionHandler from './api/notion.js';
 import todosHandler from './api/todos.js';
 import smsHandler from './api/sms.js';
 import mailHandler from './api/mail.js';
+import staffHandler from './api/staff.js';
 
 const API_ROUTES = {
   '/api/chat': chatHandler,
@@ -31,6 +32,7 @@ const API_ROUTES = {
   '/api/todos': todosHandler,
   '/api/sms': smsHandler,
   '/api/mail': mailHandler,
+  '/api/staff': staffHandler,
 };
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));

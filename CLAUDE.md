@@ -80,6 +80,14 @@
   joker.brief.last로 1일 1회) 오늘 일정+미완료 투두+최근 24h 노션 업데이트를
   클라이언트에서 조합해 JokerChat.notify로 말풍선+TTS. LLM 호출 없음(무료).
   사이드바 ☀️ 버튼 = JokerBrief.run(true) 수동 재생.
+- AI 직원(팀 모드): joker_staff 테이블(setup.sql — 기본 직원 6명을 테이블이 비었을
+  때만 시드), /api/staff(api/staff.js, GET 목록·POST add/update/delete).
+  js/staff.js가 명부·선택 상태(localStorage joker.staff.pick.v1)를 들고,
+  사이드바 👥 팀에서 카드를 누르거나 대화 앞머리에서 이름을 부르면("세리야 ~")
+  담당자가 바뀐다. 선택되면 클라이언트가 body.staff로 페르소나를 보내고
+  `buildStaffBlock`(코어·엣지 동일)이 시스템 프롬프트에 [담당 직원 모드]로
+  주입해 그 직원 말투로 응대한다(도구·태그는 조커와 동일, 부서 태그는 직원
+  부서로 고정). 직원 추가·수정은 설정 패널 TEAM 탭.
 - 왼쪽 퀵 사이드바(js/sidebar.js): 노션 페이지 목록(GET /api/notion?op=list,
   최근 수정순, 제목 클릭=노션 열기, 💬=조커가 읽어오기, 🗑=인라인 삭제/취소
   확인 후 POST /api/notion archive로 휴지통 이동)과 미니 달력(월 이동,

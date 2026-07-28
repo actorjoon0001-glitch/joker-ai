@@ -23,6 +23,7 @@
   const calGrid = document.getElementById('sbCalGrid');
   const calPrev = document.getElementById('sbCalPrev');
   const calNext = document.getElementById('sbCalNext');
+  const staffItems = document.getElementById('sbStaffItems');
   const todoItems = document.getElementById('sbTodoItems');
   const todoAddBtn = document.getElementById('sbTodoAddBtn');
   const todoAddWrap = document.getElementById('sbTodoAdd');
@@ -150,6 +151,53 @@
       if (notionRefreshBtn) notionRefreshBtn.classList.remove('spin');
     }
   }
+
+  /* ── AI 직원(팀): 카드를 누르면 그 직원이 대화를 맡는다 ── */
+  function renderStaff() {
+    if (!staffItems || !window.JokerStaff) return;
+    const list = window.JokerStaff.list();
+    const cur = window.JokerStaff.current();
+    if (!list.length) {
+      empty(staffItems, 'Supabase에서 setup.sql을 실행하면 기본 직원이 들어와요. 설정 → TEAM에서 추가할 수도 있어요.');
+      return;
+    }
+    staffItems.innerHTML = '';
+
+    const boss = document.createElement('div');
+    boss.className = 'sb-staff' + (cur ? '' : ' on');
+    boss.innerHTML = '<span class="ico">🃏</span>';
+    const bb = document.createElement('div');
+    bb.className = 'body';
+    const bn = document.createElement('b');
+    bn.textContent = '조커';
+    const br = document.createElement('span');
+    br.textContent = '팀장 · 뭐든 물어보기';
+    bb.append(bn, br);
+    boss.appendChild(bb);
+    boss.addEventListener('click', () => { window.JokerStaff.select(null); });
+    staffItems.appendChild(boss);
+
+    for (const s of list) {
+      const row = document.createElement('div');
+      row.className = 'sb-staff' + (cur && cur.id === s.id ? ' on' : '');
+      const ico = document.createElement('span');
+      ico.className = 'ico';
+      ico.textContent = s.emoji || '🙂';
+      const body = document.createElement('div');
+      body.className = 'body';
+      const n = document.createElement('b');
+      n.textContent = s.name;
+      const r = document.createElement('span');
+      r.textContent = s.role || '';
+      body.append(n, r);
+      row.append(ico, body);
+      row.addEventListener('click', () => {
+        window.JokerStaff.select(cur && cur.id === s.id ? null : s.id);
+      });
+      staffItems.appendChild(row);
+    }
+  }
+  if (window.JokerStaff) window.JokerStaff.onChange(renderStaff);
 
   /* ── 할 일 체크리스트 ── */
   async function todoOp(op, id) {
@@ -378,6 +426,8 @@
     document.body.classList.add('sb-open'); /* shifts .app right so chat stays readable */
     if (toggleBtn) toggleBtn.classList.add('hidden');
     try { localStorage.setItem(OPEN_KEY, '1'); } catch {}
+    renderStaff();
+    if (window.JokerStaff) window.JokerStaff.refresh();
     refreshNotion();
     refreshTodos();
     renderMiniCal();
@@ -423,5 +473,5 @@
     setTimeout(open, 400);
   }
 
-  window.JokerSidebar = { open, close, refreshNotion, renderEvents, refreshTodos, renderMiniCal };
+  window.JokerSidebar = { open, close, refreshNotion, renderEvents, refreshTodos, renderMiniCal, renderStaff };
 })();

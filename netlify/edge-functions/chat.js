@@ -22,6 +22,7 @@ const SYSTEM_PROMPT = `너는 '조커(Joker)'라는 이름의 개인 AI 비서�
 - 답변 복사: 네 답변 말풍선 아래 복사 버튼.
 - 설정 패널(톱니바퀴 버튼): 컴퍼니 메모리(항상 기억할 회사 정보)와 스킬(업무 절차·양식) 등록.
 - 부서 분류: 대화 주제에 따라 화면의 3D 뇌에서 담당 부서 영역이 켜지고 상단에 부서명이 표시됨.
+- AI 직원(팀): 상준님 밑에 분야별 AI 직원들이 등록돼 있음(마케팅·영업·시공·정산·전략기획·법무 등). 왼쪽 사이드바 팀 목록에서 직원을 고르거나 대화에서 이름을 부르면 그 직원이 자기 전문성과 말투로 응대하고, 직원들도 네가 쓰는 도구(노션·일정·문자·메일 등)를 똑같이 쓸 수 있음. 직원 추가·수정은 설정 패널 TEAM 탭. 담당이 뚜렷한 일은 "○○한테 물어보시죠" 하고 담당 직원을 추천해도 좋아.
 - 웹 검색: 너는 실시간 웹 검색 도구를 직접 쓸 수 있어(이미 켜져 있음). 최신 정보나 확실하지 않은 사실은 검색해서 근거 있는 답을 하고, 출처는 매체 이름 정도만 자연스럽게 언급해.
 - 일정·리마인더: 상준님이 대화로 부탁하면 네가 직접 등록·삭제·변경하고, 휴가처럼 며칠짜리 기간 일정도 띠로 등록할 수 있어. 시간이 되면 웹페이지가 알림을 띄우고, 그와 별개로 서버가 상준님 폰으로 문자도 보내줌 — 웹페이지를 닫아둬도 문자로 알림이 가니 안심하고 등록해줘. [등록된 일정·리마인더] 블록이 주입되면 그 목록이 현재 등록 상태야.
 - 할 일(투두) 관리: 상준님이 "투두에 추가해줘", "할 일 완료 처리해줘" 하면 네가 목록에 등록·완료 처리함. 목록은 왼쪽 퀵 사이드바에 체크박스로 항상 표시되고, 거기서 직접 추가·체크·삭제도 가능.
@@ -577,6 +578,32 @@ async function runNotionOp(action) {
   }
 }
 
+/* dept key → 팀 이름 (직원 블록의 부서 태그 지정용) */
+const DEPT_LABELS = {
+  strategy: '전략기획팀', marketing: '마케팅팀', sales: '영업팀',
+  design: '설계팀', construction: '시공팀', finance: '정산팀', legal: '법무팀',
+};
+
+/* 선택된 AI 직원 → 페르소나 블록 (mirrors api/_lib/core.js) */
+function buildStaffBlock(s) {
+  if (!s || typeof s !== 'object') return null;
+  const clip = (v, n) => (typeof v === 'string' ? v.trim().slice(0, n) : '');
+  const name = clip(s.name, 40);
+  if (!name) return null;
+  const role = clip(s.role, 60);
+  const persona = clip(s.persona, 2000);
+  const team = DEPT_LABELS[clip(s.dept, 20)];
+  return (
+    '\n\n[담당 직원 모드 — 이번 대화는 조커 팀의 ' + name + (role ? '(' + role + ')' : '') + '이(가) 맡는다]\n' +
+    (persona ? persona + '\n' : '') +
+    '지금부터 너는 조커 본인이 아니라 ' + name + '이야. ' + name + '의 전문성과 말투로 답하고, ' +
+    '자기를 지칭할 때도 ' + name + '이라고 해(조커라고 하지 마). 상준님을 부르는 호칭과 편안한 존댓말 톤은 그대로 유지해.' +
+    (team ? ' 답변 맨 앞의 부서 태그는 [부서:' + team + ']을 써.' : '') +
+    ' 노션·일정·투두·문자·메일·PDF·이미지·코워크 같은 시스템 태그는 조커와 똑같이 전부 쓸 수 있으니 필요하면 주저 없이 써. ' +
+    '네 담당이 아닌 일을 물으면 아는 선에서 답하되, 담당 직원에게 물어보면 더 정확하다고 한 마디 덧붙여.'
+  );
+}
+
 /* Recent Notion read/search results (sent back by the client) → system block */
 function buildNotionBlock(items) {
   if (!Array.isArray(items) || !items.length) return null;
@@ -882,7 +909,9 @@ export default async function handler(request) {
         stream: true,
         thinking: { type: 'adaptive' },
         output_config: { effort: 'medium' },
-        system: SYSTEM_PROMPT + buildTimeBlock() + (knowledgeBlock || '') + (skillBlock || '') + (buildEventsBlock(body.events) || '') + (buildNotionBlock(body.notion) || ''),
+        system: SYSTEM_PROMPT + buildTimeBlock() + (knowledgeBlock || '') + (skillBlock || '') +
+          (buildEventsBlock(body.events) || '') + (buildNotionBlock(body.notion) || '') +
+          (buildStaffBlock(body.staff) || ''),
         tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 }],
         messages: toApiMessages(history, validateImage(body.image)),
       }),
