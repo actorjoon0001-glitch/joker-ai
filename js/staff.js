@@ -79,6 +79,64 @@
     return null;
   }
 
+    /* ── 업무 지시함 — 배정된 일을 직원이 백그라운드에서 처리한다 ──
+     조커가 [[업무:이름|내용]] 태그를 붙이면 서버가 joker_staff_tasks에 접수하고,
+     워커(/api/staff-run)가 실제 작업을 수행한다. 여기서는 그 진행 상태를
+     폴링해 사이드바·채팅 카드에 보여주고, 끝나면 알림을 띄운다. */
+  const TASK_POLL_MS = 20000;
+  let tasks = [];
+  let tasksAvailable = hasBackend;
+  const taskListeners = [];
+  const emitTasks = () => { for (const fn of taskListeners) { try { fn(tasks); } catch {} } };
+
+  const isActive = (t) => t && (t.status === 'pending' || t.status === 'running');
+
+  /* 워커 기동 — 배정 직후와 대기 건이 남아 있을 때 부른다(응답은 기다리지 않음) */
+  function kick() {
+    if (!hasBackend) return;
+    fetch('api/staff-run', { method: 'POST' }).catch(() => {});
+  }
+
+  async function refreshTasks() {
+    if (!tasksAvailable) return tasks;
+    try {
+      const r = await fetch('api/staff-tasks');
+      if (r.status === 404 || r.status === 405 || r.status === 501) { tasksAvailable = false; return tasks; }
+      if (!r.ok) return tasks; /* 503(테이블 없음)은 다음에 다시 시도 */
+      const list = (await r.json()).tasks;
+      if (!Array.isArray(list)) return tasks;
+      tasks = list;
+      emitTasks();
+      notifyDone();
+    } catch {}
+    return tasks;
+  }
+
+  /* 완료·실패한 업무를 채팅으로 한 번만 알린다 */
+  function notifyDone() {
+    for (const t of tasks) {
+      if (!t || t.notified) continue;
+      if (t.status !== 'done' && t.status !== 'failed') continue;
+      t.notified = true;
+      fetch('api/staff-tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ op: 'notified', id: t.id }),
+      }).catch(() => {});
+      const who = (t.staff_emoji ? t.staff_emoji + ' ' : '') + t.staff_name;
+      const msg = t.status === 'done'
+        ? who + ' 업무 완료 — ' + String(t.request).slice(0, 60) +
+          '\n\n' + String(t.result || '').slice(0, 700) +
+          (t.notion_url ? '\n\n(노션에도 저장해뒀습니다)' : '')
+        : who + ' 업무 실패 — ' + String(t.request).slice(0, 60) +
+          '\n' + String(t.result || '다시 시켜주세요.');
+      if (window.JokerChat && window.JokerChat.notify) window.JokerChat.notify(msg);
+      if ('Notification' in window && Notification.permission === 'granted') {
+        try { new Notification('JOKER · ' + t.staff_name, { body: msg.slice(0, 120) }); } catch {}
+      }
+    }
+  }
+
   /* ── 설정 패널 TEAM 탭 ── */
   const listEl = () => document.getElementById('staffList');
 
@@ -184,7 +242,28 @@
     renderUI: render,
     saveFromUI,
     onChange(fn) { if (typeof fn === 'function') listeners.push(fn); },
+    /* 업무 지시함 */
+    tasks: () => tasks,
+    tasksFor: (id) => tasks.filter((t) => t.staff_id === id),
+    busy: (id) => tasks.some((t) => t.staff_id === id && isActive(t)),
+    task: (id) => tasks.find((t) => t.id === id) || null,
+    refreshTasks,
+    kick,
+    onTasks(fn) { if (typeof fn === 'function') taskListeners.push(fn); },
   };
 
-  if (hasBackend) refresh();
+  if (hasBackend) {
+    refresh();
+    (async () => {
+      /* 부팅 시 대화 복원이 끝난 뒤에 밀린 결과를 띄운다 */
+      await new Promise((r) => setTimeout(r, 3000));
+      await refreshTasks();
+      /* 창을 닫아둔 사이 밀린 업무가 있으면 바로 깨운다 */
+      if (tasks.some(isActive)) kick();
+      setInterval(() => {
+        if (document.hidden && !tasks.some(isActive)) return;
+        refreshTasks();
+      }, TASK_POLL_MS);
+    })();
+  }
 })();

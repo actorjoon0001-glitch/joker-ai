@@ -18,6 +18,8 @@ import todosHandler from './api/todos.js';
 import smsHandler from './api/sms.js';
 import mailHandler from './api/mail.js';
 import staffHandler from './api/staff.js';
+import staffTasksHandler from './api/staff-tasks.js';
+import staffRunHandler from './api/staff-run.js';
 
 const API_ROUTES = {
   '/api/chat': chatHandler,
@@ -33,6 +35,8 @@ const API_ROUTES = {
   '/api/sms': smsHandler,
   '/api/mail': mailHandler,
   '/api/staff': staffHandler,
+  '/api/staff-tasks': staffTasksHandler,
+  '/api/staff-run': staffRunHandler,
 };
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));

@@ -107,6 +107,22 @@
   뱃지(접수됨→작업 중→완료 ✓/실패, js/chat.js trackCoworkTask)가 붙어 45초
   간격 폴링으로 갱신되고, 완료 시 결과 요약과 "결과 보기" 링크(결과 속 첫
   URL)를 카드에 표시한다. 진행바/퍼센트는 쓰지 않는다.
+- AI 직원(팀): joker_staff 테이블 + /api/staff. 사이드바 👥 팀에서 담당자를 고르거나
+  이름을 부르면(js/staff.js detect) 그 직원 페르소나가 주입된다(core.js
+  buildStaffBlock). 명부는 매 요청 body.team으로 실려 buildTeamBlock이 시스템
+  프롬프트에 [팀 명부]로 넣는다.
+- 직원 업무 지시(실제 작업): 모델이 [[업무:직원이름|내용]] 태그를 붙이면 두 챗
+  백엔드가 joker_staff_tasks에 pending으로 접수하고(api/_lib/staff-tasks.js,
+  엣지는 인라인 사본) 지연 헤더로 배정 카드를 보낸다. 실행은 워커
+  api/staff-run.js — 그 직원 페르소나 + 회사 메모리 + 웹 검색으로 결과를 만들어
+  result에 저장하고 노션 페이지도 만든다(설정 시 notion_url). 결과에서 [부서:]와
+  [[...]] 태그는 전부 잘라내므로 백그라운드에서 문자·메일 발송이 일어날 수 없다.
+  넷리파이는 10초 제한을 피하려고 staff-run-background.mjs(15분)가 실제 실행을,
+  staff-run.mjs(/api/staff-run)가 트리거를 맡고, staff-tick.mjs가 5분마다 대기
+  건이 있을 때만 깨운다(창을 닫아둬도 진행). 프론트는 배정 직후 워커를 깨우고
+  /api/staff-tasks를 폴링해 카드 뱃지(배정됨→작업 중→완료 ✓)와 사이드바 '작업 중'
+  표시를 갱신하고 완료 시 말풍선으로 알린다. running으로 15분 이상 멈춘 건은
+  pending으로 되돌린다. JOKER_STAFF_WORKER=off로 끌 수 있다.
 - 이미지 생성: 모델이 [[이미지:영어 프롬프트]] 태그를 붙이면 클라이언트가
   /api/media(api/media.js, 힉스필드 Higgsfield 프록시)로 잡 생성 후 폴링해
   완성 이미지를 카드에 띄운다. HIGGSFIELD_CREDENTIALS("keyId:secret",

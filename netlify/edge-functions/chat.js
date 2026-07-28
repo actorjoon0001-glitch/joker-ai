@@ -22,7 +22,8 @@ const SYSTEM_PROMPT = `너는 '조커(Joker)'라는 이름의 개인 AI 비서�
 - 답변 복사: 네 답변 말풍선 아래 복사 버튼.
 - 설정 패널(톱니바퀴 버튼): 컴퍼니 메모리(항상 기억할 회사 정보)와 스킬(업무 절차·양식) 등록.
 - 부서 분류: 대화 주제에 따라 화면의 3D 뇌에서 담당 부서 영역이 켜지고 상단에 부서명이 표시됨.
-- AI 직원(팀): 상준님 밑에 분야별 AI 직원들이 등록돼 있음(마케팅·영업·시공·정산·전략기획·법무 등). 왼쪽 사이드바 팀 목록에서 직원을 고르거나 대화에서 이름을 부르면 그 직원이 자기 전문성과 말투로 응대하고, 직원들도 네가 쓰는 도구(노션·일정·문자·메일 등)를 똑같이 쓸 수 있음. 직원 추가·수정은 설정 패널 TEAM 탭. 담당이 뚜렷한 일은 "○○한테 물어보시죠" 하고 담당 직원을 추천해도 좋아.
+- AI 직원(팀): 상준님 밑에 분야별 AI 직원들이 등록돼 있음(마케팅·영업·시공·정산·전략기획·법무 등). 왼쪽 사이드바 팀 목록에서 직원을 고르거나 대화에서 이름을 부르면 그 직원이 자기 전문성과 말투로 응대하고, 직원들도 네가 쓰는 도구(노션·일정·문자·메일 등)를 똑같이 쓸 수 있음. 직원 추가·수정은 설정 패널 TEAM 탭.
+- 직원 업무 지시: 대화만 하는 게 아니라 일을 맡겨둘 수 있음. 상준님이 일을 시키면 네가 담당 직원에게 배정하고, 그 직원이 백그라운드에서 실제로 조사·작성을 진행해(웹 검색 포함) 몇 분 뒤 결과를 채팅 알림과 노션 문서로 돌려줌. 상준님이 창을 닫아둬도 계속 진행되고, 진행 상황은 왼쪽 사이드바 팀 목록과 채팅 카드에 표시됨.
 - 웹 검색: 너는 실시간 웹 검색 도구를 직접 쓸 수 있어(이미 켜져 있음). 최신 정보나 확실하지 않은 사실은 검색해서 근거 있는 답을 하고, 출처는 매체 이름 정도만 자연스럽게 언급해.
 - 일정·리마인더: 상준님이 대화로 부탁하면 네가 직접 등록·삭제·변경하고, 휴가처럼 며칠짜리 기간 일정도 띠로 등록할 수 있어. 시간이 되면 웹페이지가 알림을 띄우고, 그와 별개로 서버가 상준님 폰으로 문자도 보내줌 — 웹페이지를 닫아둬도 문자로 알림이 가니 안심하고 등록해줘. [등록된 일정·리마인더] 블록이 주입되면 그 목록이 현재 등록 상태야.
 - 할 일(투두) 관리: 상준님이 "투두에 추가해줘", "할 일 완료 처리해줘" 하면 네가 목록에 등록·완료 처리함. 목록은 왼쪽 퀵 사이드바에 체크박스로 항상 표시되고, 거기서 직접 추가·체크·삭제도 가능.
@@ -59,6 +60,14 @@ const SYSTEM_PROMPT = `너는 '조커(Joker)'라는 이름의 개인 AI 비서�
 PDF 문서 방법(시스템 명령): 상준님이 PDF로 달라고 하거나 문서·보고서·견적서 파일로 뽑아 달라고 하면 답변 맨 끝에 [[PDF:제목|내용]] 태그를 붙여. 내용이 문서 본문 그대로 PDF가 되니 줄바꿈으로 문단·항목을 정리해 1200자 이내로 작성해. 본문에서는 '문서 준비됐다, 카드에서 다운로드하면 된다'고 짧게 말해. 요청이 없으면 절대 쓰지 마.
 
 이미지 생성 방법(시스템 명령): 상준님이 이미지·시안·썸네일을 만들어 달라고 하면 답변 맨 끝에 [[이미지:프롬프트]] 태그를 붙여. 프롬프트는 영어로, 장면·스타일·조명·구도를 구체적으로 묘사해(예: modern Korean house exterior, warm sunset light, photorealistic, wide shot). 본문에서는 '생성 시작했다, 잠시 후 카드에 뜬다'고 짧게 말해. 요청이 없으면 절대 쓰지 마.
+
+직원에게 일 맡기는 방법(시스템 명령): 상준님이 "○○한테 시켜줘", "누구 시켜서 알아봐줘"처럼 직원을 지목하거나, 시장·경쟁사 조사, 기획안·제안서 초안, 견적 검토, 계약서 리스크 점검처럼 담당이 뚜렷하고 시간이 걸리는 일을 부탁하면 답변 맨 끝에 [[업무:직원이름|업무 내용]] 태그를 붙여. 규칙은 이래.
+- 직원 이름은 [팀 명부] 블록에 있는 이름을 그대로 써. 명부에 없는 이름은 쓰지 마.
+- 지목이 없으면 일의 성격에 맞는 담당자를 네가 골라 배정하고, 본문에서 누구에게 왜 맡겼는지 한 줄로 말해.
+- 업무 내용은 그 직원이 이 대화를 못 본 상태에서도 바로 실행할 수 있게 목적·대상·결과물 형식을 구체적으로 적어(예: "○○ 지역 30평대 신축 시장 조사 — 최근 1년 시세 추이, 경쟁 업체 3곳 비교, 우리 강점 제안까지 A4 한 장").
+- 태그를 붙이면 그 직원이 백그라운드에서 실제로 일을 시작해. 결과는 몇 분 뒤 채팅 알림과 노션 문서로 오니 본문에서는 '○○한테 넘겼다, 끝나면 알려드린다'고 짧게 말하고 결과를 지어내지 마.
+- 채팅에서 바로 답할 수 있는 짧은 질문이나 단순 확인은 위임하지 말고 직접 답해. 한 답변에 업무 태그는 1개만.
+네가 직원으로 응대하는 중이라도 다른 직원에게 이 태그로 넘길 수 있어.
 
 코워크 위임 방법(시스템 명령): 상준님이 자료 조사·비교 분석, 보고서/엑셀/문서 파일 제작, 웹페이지 개발·수정처럼 네가 채팅 답변만으로 완결할 수 없는 무거운 작업을 요청하거나 '코워크한테 시켜줘'라고 하면, 답변 맨 끝에 [[코워크:요청 상세]] 태그를 붙여. 요청 상세는 코워크(클라우드에서 일하는 실무 AI)가 이 대화를 못 본 상태에서도 바로 실행할 수 있게 목적·대상·결과물 형식을 구체적으로 적어. 본문에서는 '코워크에 접수했다, 완료되면 알려드린다'고 말해. 네가 채팅으로 바로 답할 수 있는 일은 위임하지 말고 직접 해.
 
@@ -584,6 +593,78 @@ const DEPT_LABELS = {
   design: '설계팀', construction: '시공팀', finance: '정산팀', legal: '법무팀',
 };
 
+/* 등록된 AI 직원 명부 → 시스템 블록 (mirrors api/_lib/core.js) */
+function buildTeamBlock(list) {
+  if (!Array.isArray(list) || !list.length) return null;
+  const lines = [];
+  for (const s of list.slice(0, 12)) {
+    if (!s || typeof s.name !== 'string') continue;
+    const name = s.name.trim().slice(0, 40);
+    if (!name) continue;
+    const role = typeof s.role === 'string' ? s.role.trim().slice(0, 60) : '';
+    const team = DEPT_LABELS[typeof s.dept === 'string' ? s.dept.trim() : ''];
+    lines.push('- ' + name + (role ? ' — ' + role : '') + (team ? ' (' + team + ')' : ''));
+  }
+  if (!lines.length) return null;
+  return (
+    '\n\n[팀 명부 — 상준님 밑에서 일하는 AI 직원들]\n' + lines.join('\n') +
+    '\n일을 맡길 때는 이 명부의 이름을 [[업무:이름|내용]] 태그에 정확히 써. 여기 없는 사람에게는 맡길 수 없어.'
+  );
+}
+
+/* [[업무:직원이름|내용]] → 지시함 접수 (mirrors api/_lib/staff-tasks.js).
+   실제 수행은 백그라운드 워커(api/staff-run.js)가 맡는다. */
+async function assignStaffTask(action) {
+  const name = String(action.name || '').replace(/[%*]/g, '').trim().slice(0, 40);
+  const request = String(action.request || '').trim().slice(0, 2000);
+  const base = { kind: 'staff_task', name, request };
+  if (!name || !request) return { ...base, status: 'error' };
+  try {
+    const { url, key } = sbConfig();
+    const headers = {
+      apikey: key,
+      Authorization: 'Bearer ' + key,
+      'Content-Type': 'application/json',
+    };
+    const q = await fetch(
+      url + '/rest/v1/joker_staff?select=id,name,role,dept,emoji&name=ilike.' +
+      encodeURIComponent(name) + '&limit=1',
+      { headers }
+    );
+    if (q.status === 404) return { ...base, status: 'db_not_ready' };
+    if (!q.ok) return { ...base, status: 'error' };
+    const rows = await q.json().catch(() => []);
+    if (!rows.length) return { ...base, status: 'not_found' };
+    const s = rows[0];
+    const r = await fetch(url + '/rest/v1/joker_staff_tasks', {
+      method: 'POST',
+      headers: { ...headers, Prefer: 'return=representation' },
+      body: JSON.stringify({
+        staff_id: s.id,
+        staff_name: s.name,
+        staff_emoji: s.emoji || null,
+        dept: s.dept || null,
+        request,
+      }),
+    });
+    if (r.status === 404) return { ...base, status: 'db_not_ready' };
+    if (!r.ok) return { ...base, status: 'error' };
+    const saved = (await r.json().catch(() => []))[0] || {};
+    return {
+      kind: 'staff_task',
+      status: 'queued',
+      id: saved.id || null,
+      name: s.name,
+      role: s.role || '',
+      emoji: s.emoji || '',
+      request,
+    };
+  } catch (err) {
+    console.error('[joker edge] staff task', err);
+    return { ...base, status: 'error' };
+  }
+}
+
 /* 선택된 AI 직원 → 페르소나 블록 (mirrors api/_lib/core.js) */
 function buildStaffBlock(s) {
   if (!s || typeof s !== 'object') return null;
@@ -680,6 +761,9 @@ const PDF_TAG_RE =
 const IMAGE_TAG_RE =
   /\[\[\s*이미지\s*:\s*([\s\S]{1,600}?)\s*\]\]/;
 
+const STAFF_TASK_TAG_RE =
+  /\[\[\s*업무\s*:\s*([^\]|]{1,40}?)\s*\|\s*([\s\S]{1,1200}?)\s*\]\]/;
+
 const COWORK_TAG_RE =
   /\[\[\s*코워크\s*:\s*([\s\S]{1,1000}?)\s*\]\]/;
 
@@ -739,6 +823,7 @@ function parseActionTag(tag) {
   if ((m = tag.match(TODO_TAG_RE))) return { kind: 'todo', title: m[1].trim() };
   if ((m = tag.match(PDF_TAG_RE))) return { kind: 'pdf', title: m[1].trim(), content: m[2].trim() };
   if ((m = tag.match(IMAGE_TAG_RE))) return { kind: 'image', prompt: m[1].trim() };
+  if ((m = tag.match(STAFF_TASK_TAG_RE))) return { kind: 'staff_task', name: m[1].trim(), request: m[2].trim() };
   if ((m = tag.match(COWORK_TAG_RE))) return { kind: 'cowork', request: m[1].trim() };
   return null;
 }
@@ -771,7 +856,7 @@ function createDeptTagFilter(writeText, writeHeader, onAction) {
       const action = parseActionTag(tag);
       s = s.slice(end + 2);
       if (action) {
-        const deferred = action.kind.indexOf('notion') === 0 ||
+        const deferred = action.kind.indexOf('notion') === 0 || action.kind === 'staff_task' ||
           action.kind === 'todo_done' || action.kind === 'event_delete' || action.kind === 'event_move';
         if (!deferred) writeHeader('\u0000action:' + JSON.stringify(action) + '\u0000');
         if (onAction) { try { onAction(action); } catch (_) {} }
@@ -911,7 +996,7 @@ export default async function handler(request) {
         output_config: { effort: 'medium' },
         system: SYSTEM_PROMPT + buildTimeBlock() + (knowledgeBlock || '') + (skillBlock || '') +
           (buildEventsBlock(body.events) || '') + (buildNotionBlock(body.notion) || '') +
-          (buildStaffBlock(body.staff) || ''),
+          (buildTeamBlock(body.team) || '') + (buildStaffBlock(body.staff) || ''),
         tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 }],
         messages: toApiMessages(history, validateImage(body.image)),
       }),
@@ -959,6 +1044,10 @@ export default async function handler(request) {
               pendingWrites.push(completeTodo(action.title).then((result) => {
                 controller.enqueue(encoder.encode(CTRL + 'action:' + JSON.stringify(result) + CTRL));
               }).catch((e) => console.error('[joker edge] todo done', e)));
+            } else if (action.kind === 'staff_task') {
+              pendingWrites.push(assignStaffTask(action).then((result) => {
+                controller.enqueue(encoder.encode(CTRL + 'action:' + JSON.stringify(result) + CTRL));
+              }).catch((e) => console.error('[joker edge] staff task', e)));
             } else if (action.kind === 'cowork') {
               pendingWrites.push(saveTask(action.request));
             } else if (action.kind === 'event' || action.kind === 'reminder') {

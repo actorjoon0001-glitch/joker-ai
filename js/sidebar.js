@@ -188,16 +188,35 @@
       const n = document.createElement('b');
       n.textContent = s.name;
       const r = document.createElement('span');
-      r.textContent = s.role || '';
+      /* 맡겨둔 업무가 있으면 역할 대신 진행 상태를 보여준다 */
+      const mine = window.JokerStaff.tasksFor ? window.JokerStaff.tasksFor(s.id) : [];
+      const busy = mine.filter((t) => t.status === 'pending' || t.status === 'running');
+      if (busy.length) {
+        row.classList.add('busy');
+        r.className = 'work';
+        r.textContent = '작업 중 · ' + String(busy[0].request).slice(0, 26) +
+          (busy.length > 1 ? ' 외 ' + (busy.length - 1) + '건' : '');
+      } else {
+        r.textContent = s.role || '';
+      }
       body.append(n, r);
       row.append(ico, body);
+      if (busy.length) {
+        const dot = document.createElement('span');
+        dot.className = 'work-dot';
+        dot.title = '업무 진행 중';
+        row.appendChild(dot);
+      }
       row.addEventListener('click', () => {
         window.JokerStaff.select(cur && cur.id === s.id ? null : s.id);
       });
       staffItems.appendChild(row);
     }
   }
-  if (window.JokerStaff) window.JokerStaff.onChange(renderStaff);
+  if (window.JokerStaff) {
+    window.JokerStaff.onChange(renderStaff);
+    if (window.JokerStaff.onTasks) window.JokerStaff.onTasks(renderStaff);
+  }
 
   /* ── 할 일 체크리스트 ── */
   async function todoOp(op, id) {

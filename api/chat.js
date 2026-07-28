@@ -12,6 +12,7 @@ import { sb } from './_lib/db.js';
 import {
   notionEnv, resolveTarget, searchPages, listBlocks, blocksToText, appendBlocks, replaceBlocks,
 } from './_lib/notion.js';
+import { assignStaffTask } from './_lib/staff-tasks.js';
 
 const MODEL = process.env.JOKER_MODEL || MODEL_DEFAULT;
 
@@ -301,6 +302,11 @@ export default async function handler(req, res) {
             ensureHeaders();
             res.write(CTRL + 'action:' + JSON.stringify(result) + CTRL);
           }).catch((e) => console.error('[joker api] todo done', e)));
+        } else if (action.kind === 'staff_task') {
+          pendingWrites.push(assignStaffTask(action).then((result) => {
+            ensureHeaders();
+            res.write(CTRL + 'action:' + JSON.stringify(result) + CTRL);
+          }).catch((e) => console.error('[joker api] staff task', e)));
         } else if (action.kind === 'cowork') {
           pendingWrites.push(saveTask(action.request));
         } else if (action.kind === 'event' || action.kind === 'reminder') {

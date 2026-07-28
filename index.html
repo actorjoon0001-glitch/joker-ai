@@ -1029,6 +1029,19 @@
     box-shadow: 0 0 14px rgba(178, 107, 255, 0.18) inset;
   }
   .sb-staff.on .body b { color: #d9b8ff; }
+  /* 업무 진행 중인 직원 — 왼쪽 카드에 상태와 깜빡이는 점을 표시 */
+  .sb-staff.busy { border-color: rgba(255, 179, 71, 0.4); background: rgba(255, 179, 71, 0.06); }
+  .sb-staff .body span.work { color: #ffb347; }
+  .sb-staff .work-dot {
+    flex-shrink: 0;
+    margin-left: auto;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #ffb347;
+    box-shadow: 0 0 8px rgba(255, 179, 71, 0.8);
+    animation: badgePulse 1.6s ease-in-out infinite;
+  }
 
   /* 설정 TEAM 탭 — 직원 편집 카드 */
   .staff-row {
