@@ -127,3 +127,20 @@
   /api/media(api/media.js, 힉스필드 Higgsfield 프록시)로 잡 생성 후 폴링해
   완성 이미지를 카드에 띄운다. HIGGSFIELD_CREDENTIALS("keyId:secret",
   cloud.higgsfield.ai/api-keys에서 발급) 미설정 시 501 → 카드에 안내 표시.
+- 방 감시(카메라): watch.html + js/watch.js가 방에 놓아둔 기기(주로 안 쓰는 폰)에서
+  카메라를 지켜본다. 움직임 감지는 브라우저에서 캔버스 프레임 차이로 공짜로 하고
+  (64x48 흑백, 기본 문턱 6%), 움직임이 잡힌 순간에만 사진 1장을 /api/watch
+  (api/watch.js)로 보내 판별한다. 판별은 값싼 모델(JOKER_WATCH_MODEL, 기본 Haiku)로
+  하고 joker_watch_faces에 등록해 둔 참고 사진(최대 3장)과 대조해
+  owner/stranger/unsure/none을 낸다. stranger면 서버가 솔라피로 문자를 보내고
+  (10분 쿨다운·하루 20건, 번호는 JOKER_SMS_TO→SOLAPI_SENDER) 그 건만 사진을
+  joker_watch_events에 남긴다. owner면 클라이언트가 10분 이상 부재였을 때만 TTS로
+  인사한다. 판별 최소 간격 30초, 본인 확인 후 3분 침묵, 시간당 150회 서버 한도.
+  참고 사진이 없으면 절대 stranger로 단정하지 않는다(항상 unsure). 테이블은
+  setup.sql, 킬 스위치는 JOKER_WATCH=off. 사이드바 👁️ 버튼이 watch.html을 연다.
+- 집 CCTV 연결: tools/cctv-bridge.mjs를 집의 상시 켜둔 PC/라즈베리파이에서 돌리면
+  RTSP나 스냅샷 JPEG 주소에서 ffmpeg로 프레임을 뽑아 같은 /api/watch로 보낸다
+  (움직임 판단은 64x48 흑백 rawvideo, 전송용은 640폭 JPEG — 움직일 때만 두 번째
+  호출). --url/--server/--interval/--min/--threshold/--once, FFMPEG 환경변수로
+  실행 파일 경로 지정 가능. 서버리스라 조커가 집 안 카메라에 직접 접속할 수 없어
+  이 다리가 필요하다.

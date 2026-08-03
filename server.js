@@ -20,6 +20,7 @@ import mailHandler from './api/mail.js';
 import staffHandler from './api/staff.js';
 import staffTasksHandler from './api/staff-tasks.js';
 import staffRunHandler from './api/staff-run.js';
+import watchHandler from './api/watch.js';
 
 const API_ROUTES = {
   '/api/chat': chatHandler,
@@ -37,6 +38,7 @@ const API_ROUTES = {
   '/api/staff': staffHandler,
   '/api/staff-tasks': staffTasksHandler,
   '/api/staff-run': staffRunHandler,
+  '/api/watch': watchHandler,
 };
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>JOKER — 방 감시</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600&family=IBM+Plex+Sans+KR:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg-0: #04060c;
+    --bg-1: #080d1c;
+    --cyan: #34e0ff;
+    --green: #58ff9b;
+    --amber: #ffc46b;
+    --red: #ff6b8a;
+    --text: #d6e6f2;
+    --text-dim: #7d93a8;
+    --font-tech: 'Rajdhani', 'IBM Plex Sans KR', system-ui, sans-serif;
+    --font-body: 'IBM Plex Sans KR', 'Rajdhani', system-ui, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    min-height: 100%;
+    background: radial-gradient(1200px 600px at 50% -10%, #0b1226, var(--bg-0));
+    font-family: var(--font-body);
+    color: var(--text);
+    padding: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+
+  header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  h1 {
+    font-family: var(--font-tech); font-size: 20px; font-weight: 600;
+    letter-spacing: 2px; color: var(--cyan);
+  }
+  h1 small { display: block; font-size: 11px; letter-spacing: 1px; color: var(--text-dim); }
+  .state {
+    font-family: var(--font-tech); font-size: 13px; letter-spacing: 1px;
+    padding: 5px 12px; border-radius: 999px;
+    border: 1px solid rgba(125, 147, 168, 0.35); color: var(--text-dim);
+  }
+  .state.ok { color: var(--green); border-color: rgba(88, 255, 155, 0.45); }
+  .state.busy { color: var(--cyan); border-color: rgba(52, 224, 255, 0.45); }
+  .state.bad { color: var(--red); border-color: rgba(255, 107, 138, 0.45); }
+
+  .screen {
+    position: relative; border-radius: 14px; overflow: hidden;
+    background: #000; border: 1px solid rgba(52, 224, 255, 0.22);
+    aspect-ratio: 4 / 3;
+  }
+  video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(255,255,255,0.08); }
+  .bar i { display: block; height: 100%; width: 0; background: var(--cyan); transition: width .2s; }
+
+  .panel {
+    border: 1px solid rgba(125, 147, 168, 0.22); border-radius: 12px;
+    background: rgba(8, 13, 28, 0.7); padding: 12px; display: flex;
+    flex-direction: column; gap: 10px;
+  }
+  .line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .line > label { font-size: 12px; color: var(--text-dim); min-width: 54px; }
+  button, select {
+    font-family: var(--font-body); font-size: 13px; color: var(--text);
+    background: rgba(52, 224, 255, 0.08); border: 1px solid rgba(52, 224, 255, 0.3);
+    border-radius: 8px; padding: 8px 14px; cursor: pointer;
+  }
+  button:disabled { opacity: .4; cursor: default; }
+  button.ghost { background: transparent; border-color: rgba(125, 147, 168, 0.3); }
+  select { flex: 1; min-width: 120px; }
+  input[type="range"] { flex: 1; accent-color: var(--cyan); }
+  input[type="checkbox"] { accent-color: var(--cyan); }
+  .hint { font-size: 12px; color: var(--text-dim); line-height: 1.6; }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 4px; font-size: 12px;
+    padding: 4px 6px 4px 10px; border-radius: 999px;
+    border: 1px solid rgba(88, 255, 155, 0.35); color: var(--green);
+  }
+  .chip button { padding: 0 4px; border: 0; background: none; color: inherit; font-size: 14px; }
+
+  #log { display: flex; flex-direction: column; gap: 6px; max-height: 40vh; overflow-y: auto; }
+  #log .row { display: flex; gap: 8px; font-size: 12.5px; line-height: 1.5; color: var(--text-dim); }
+  #log time { font-family: var(--font-tech); color: rgba(125, 147, 168, 0.7); flex: none; }
+  #log .row.ok span { color: var(--green); }
+  #log .row.warn span { color: var(--amber); }
+  #log .row.bad span { color: var(--red); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>JOKER WATCH<small>방 감시 모드</small></h1>
+    <span id="state" class="state">꺼짐</span>
+  </header>
+
+  <div class="screen">
+    <video id="cam" playsinline muted></video>
+    <div class="bar"><i id="meter"></i></div>
+  </div>
+
+  <div class="panel">
+    <div class="line">
+      <button id="startBtn">감시 시작</button>
+      <button id="stopBtn" class="ghost" hidden>멈추기</button>
+      <button id="shotBtn" class="ghost" disabled>지금 화면을 내 얼굴로 등록</button>
+    </div>
+    <div class="line">
+      <label>카메라</label>
+      <select id="camPick"></select>
+    </div>
+    <div class="line">
+      <label>민감도</label>
+      <input id="sens" type="range" min="2" max="20" step="1" />
+      <span id="sensVal" class="hint"></span>
+    </div>
+    <div class="line">
+      <label><input id="voiceOn" type="checkbox" checked /> 음성 인사·경고</label>
+      <span id="smsState" class="hint"></span>
+    </div>
+    <div class="line" id="faces"></div>
+    <p class="hint">
+      움직임이 잡힐 때만 사진 한 장을 판별합니다(최소 30초 간격). 평소에는 요금이 들지 않습니다.
+      사진은 모르는 사람이 감지된 건만 남기고 나머지는 저장하지 않습니다.<br />
+      화면이 꺼지면 카메라도 멈추니 충전기를 꽂고 화면을 켠 채로 두세요.
+    </p>
+  </div>
+
+  <div class="panel">
+    <div id="log"></div>
+  </div>
+</div>
+<script src="js/watch.js"></script>
+</body>
+</html>

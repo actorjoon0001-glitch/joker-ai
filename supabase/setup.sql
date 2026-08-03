@@ -157,3 +157,32 @@ alter table joker_staff_tasks enable row level security;
 drop policy if exists "joker anon staff tasks" on joker_staff_tasks;
 create policy "joker anon staff tasks" on joker_staff_tasks
   for all to anon using (true) with check (true);
+
+-- 방 감시(카메라): 얼굴 참고 사진과 감지 기록
+create table if not exists joker_watch_faces (
+  id bigint generated always as identity primary key,
+  label text not null default '상준님',
+  media_type text not null default 'image/jpeg',
+  data text not null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists joker_watch_events (
+  id bigint generated always as identity primary key,
+  verdict text not null,
+  detail text,
+  image text,
+  sms_sent boolean not null default false,
+  created_at timestamptz not null default now()
+);
+create index if not exists joker_watch_events_created_idx on joker_watch_events (created_at desc);
+
+alter table joker_watch_faces enable row level security;
+drop policy if exists "joker anon watch faces" on joker_watch_faces;
+create policy "joker anon watch faces" on joker_watch_faces
+  for all to anon using (true) with check (true);
+
+alter table joker_watch_events enable row level security;
+drop policy if exists "joker anon watch events" on joker_watch_events;
+create policy "joker anon watch events" on joker_watch_events
+  for all to anon using (true) with check (true);
