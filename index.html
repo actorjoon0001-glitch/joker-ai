@@ -863,6 +863,14 @@
   .sb-head button:hover { color: var(--text); }
   .sb-head-btns { display: flex; align-items: center; gap: 2px; }
   .sb-head-btns #sbBrief { font-size: 15px; }
+  .sb-head-btns #sbWatch {
+    font-size: 15px;
+    line-height: 1;
+    padding: 2px 8px;
+    text-decoration: none;
+    color: var(--text-dim);
+  }
+  .sb-head-btns #sbWatch:hover { color: var(--text); }
 
   /* 할 일 체크리스트 */
   .sb-todo-add { margin-bottom: 8px; }
@@ -1616,6 +1624,8 @@
     <h2>QUICK PANEL</h2>
     <div class="sb-head-btns">
       <button id="sbBrief" title="오늘 브리핑 다시 듣기" aria-label="아침 브리핑">☀️</button>
+      <a id="sbWatch" href="watch.html" target="_blank" rel="noopener"
+         title="방 감시 모드 (카메라 놓아둘 기기에서 열기)" aria-label="방 감시">👁️</a>
       <button id="sbClose" aria-label="사이드바 닫기">×</button>
     </div>
   </div>
