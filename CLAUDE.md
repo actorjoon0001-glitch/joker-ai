@@ -141,6 +141,8 @@
 - 집 CCTV 연결: tools/cctv-bridge.mjs를 집의 상시 켜둔 PC/라즈베리파이에서 돌리면
   RTSP나 스냅샷 JPEG 주소에서 ffmpeg로 프레임을 뽑아 같은 /api/watch로 보낸다
   (움직임 판단은 64x48 흑백 rawvideo, 전송용은 640폭 JPEG — 움직일 때만 두 번째
-  호출). --url/--server/--interval/--min/--threshold/--once, FFMPEG 환경변수로
-  실행 파일 경로 지정 가능. 서버리스라 조커가 집 안 카메라에 직접 접속할 수 없어
+  호출). --url/--motion-url/--server/--interval/--min/--threshold/--once,
+  FFMPEG 환경변수로 실행 파일 경로 지정 가능. Tapo처럼 스트림이 둘이면
+  --motion-url에 저화질(stream2)을 주면 감시는 거기서, 판별 사진만 고화질에서
+  받는다. 서버리스라 조커가 집 안 카메라에 직접 접속할 수 없어
   이 다리가 필요하다.

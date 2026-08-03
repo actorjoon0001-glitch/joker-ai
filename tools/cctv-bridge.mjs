@@ -19,7 +19,15 @@
    카메라 주소(--url)는 RTSP 주소든 스냅샷 JPEG 주소든 상관없다.
    기종별 RTSP 주소는 제조사 앱의 '고급 설정'이나 매뉴얼에 있다.
 
+   TP-Link Tapo는 고화질/저화질 두 스트림을 준다. 저화질로 움직임만 살피고
+   판별 사진은 고화질로 받으면 집 컴퓨터가 훨씬 덜 힘들다:
+     node tools/cctv-bridge.mjs \
+       --url        "rtsp://아이디:비번@192.168.0.30:554/stream1" \
+       --motion-url "rtsp://아이디:비번@192.168.0.30:554/stream2" \
+       --server "https://내조커주소"
+
    옵션:
+     --motion-url    움직임 감지에 쓸 주소 (기본: --url 과 동일)
      --interval  초  움직임을 살피는 주기 (기본 3)
      --min       초  판별 요청 최소 간격 (기본 30)
      --threshold %   이만큼 화면이 바뀌면 움직임으로 본다 (기본 6)
@@ -36,7 +44,7 @@ const FFMPEG = process.env.FFMPEG || 'ffmpeg';
 export function parseArgs(argv) {
   const out = { interval: 3, min: 30, threshold: 6, once: false, server: 'http://localhost:3000' };
   for (let i = 0; i < argv.length; i++) {
-    const key = argv[i].replace(/^--/, '');
+    const key = argv[i].replace(/^--/, '').replace(/-/g, '_');
     if (key === 'once') { out.once = true; continue; }
     const val = argv[++i];
     if (val === undefined) continue;
@@ -44,6 +52,8 @@ export function parseArgs(argv) {
     else out[key] = val;
   }
   out.server = String(out.server).replace(/\/+$/, '');
+  /* 저화질 주소를 따로 주지 않으면 한 주소로 둘 다 한다 */
+  if (!out.motion_url) out.motion_url = out.url;
   return out;
 }
 
@@ -135,10 +145,11 @@ export async function main(argv) {
   }
 
   say(`감시 시작 — ${cfg.interval}초마다 확인, 화면이 ${cfg.threshold}% 이상 바뀌면 판별합니다.`);
+  if (cfg.motion_url !== cfg.url) say('움직임은 저화질 스트림으로, 판별 사진은 고화질로 받습니다.');
   let prev = null, lastCheck = 0, fails = 0;
   for (;;) {
     try {
-      const gray = await grabGray(cfg.url);
+      const gray = await grabGray(cfg.motion_url);
       fails = 0;
       const ratio = motionRatio(prev, gray);
       prev = gray;
@@ -149,7 +160,11 @@ export async function main(argv) {
     } catch (err) {
       fails++;
       /* 카메라가 잠깐 끊기는 건 흔하다 — 조용히 넘기고 계속 붙어 있는다 */
-      if (fails === 1 || fails % 20 === 0) say('카메라를 읽지 못했습니다 (' + fails + '회): ' + String(err.message).slice(0, 120));
+      if (fails === 1 || fails % 20 === 0) {
+        say('카메라를 읽지 못했습니다 (' + fails + '회): ' + String(err.message).slice(0, 120));
+        /* Tapo는 앱에서 따로 만든 '카메라 계정'을 써야 한다 — 가장 흔한 실수 */
+        if (/401|Unauthorized/i.test(err.message)) say('  → 아이디·비밀번호를 확인하세요. Tapo는 앱의 카메라 계정이지 TP-Link 로그인 계정이 아닙니다.');
+      }
     }
     await new Promise((r) => setTimeout(r, cfg.interval * 1000));
   }
